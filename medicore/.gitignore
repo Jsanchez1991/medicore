@@ -1,0 +1,26 @@
+# Entorno
+.env
+.env.local
+.env.production
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Editores
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node (si en el futuro agregas un build step)
+node_modules/
+dist/
+.npm/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Supabase local
+.supabase/
