@@ -7,7 +7,7 @@
 // ══════════════════════════════════════════════════════════════════
 
 const SUPABASE_URL = 'https://uxtmzcojuolnubzbdkld.supabase.co'
-const SUPABASE_KEY = 'sb_publishable_31udCA_K_ctsfWp8_xfpJQ_aS4RZ0xt'
+const SUPABASE_KEY = 'sb_publishable_Wg4-FN8ChSWMsAhm2SIcxQ_-RC8ov4P'
 
 // ── Cliente Supabase ──
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
