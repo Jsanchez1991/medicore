@@ -6,6 +6,9 @@ const APP_SHELL = [
   './index.html',
   './booking.html',
   './supabase-client.js',
+  './manifest.json',
+  './logodc.jpeg',
+  './icon-512.png',
   'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,700;1,9..144,300&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap',
 ];
 

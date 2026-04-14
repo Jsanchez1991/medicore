@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "MediCore — npx serve",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "medicore", "-p", "3000"],
+      "port": 3000
+    },
+    {
+      "name": "MediCore — http-server",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["http-server", "medicore", "-p", "3000", "--cors"],
+      "port": 3000
+    },
+    {
+      "name": "MediCore — Python",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "3000", "--directory", "medicore"],
+      "port": 3000
+    }
+  ]
+}
