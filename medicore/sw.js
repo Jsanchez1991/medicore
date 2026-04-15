@@ -38,6 +38,9 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = e.request.url;
 
+  // Ignorar esquemas no soportados (extensiones del navegador, etc.)
+  if (!url.startsWith('http://') && !url.startsWith('https://')) return;
+
   // Supabase y CDNs externos: siempre red (nunca cachear)
   if (NETWORK_ONLY.some(domain => url.includes(domain))) {
     e.respondWith(fetch(e.request).catch(() => new Response('', { status: 503 })));
