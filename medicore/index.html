@@ -1165,7 +1165,14 @@ async function doLogin() {
   btn.disabled = true;
   try {
     await sbLogin(email, pass);
-    // onAuthStateChange se encargará de llamar showApp()
+    // Llamar showApp directamente como respaldo a onAuthStateChange
+    loading.style.display = 'none';
+    btn.disabled = false;
+    const session = await sbGetSession();
+    if (session) {
+      await sbInitDoctor(session.user);
+      showApp();
+    }
   } catch(e) {
     loading.style.display = 'none';
     btn.disabled = false;
