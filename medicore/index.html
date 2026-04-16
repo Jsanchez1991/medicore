@@ -1315,7 +1315,7 @@ async function updateSidebar() {
         const nombre = `Dr. ${data.nombre} ${data.apellido}`.trim();
         document.getElementById('sidebar-name').textContent = nombre;
         document.getElementById('sidebar-role').textContent = data.especialidad || 'Médico General';
-        const initials2 = ((data.nombre||'D')[0] + (data.apellido||'')[0]).toUpperCase();
+        const initials2 = ((data.nombre||'D').charAt(0) + (data.apellido||'').charAt(0)).toUpperCase();
         document.getElementById('sidebar-avatar').textContent = initials2;
         return;
       }
