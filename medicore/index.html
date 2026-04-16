@@ -925,7 +925,7 @@
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title" id="modal-patient-title">Nuevo Paciente</div>
-      <button class="modal-close" onclick="closeModal('modal-patient')">✕</button>
+      <button class="modal-close" onclick="closeModal('modal-patient');if(_detailReturnId){const r=_detailReturnId;_detailReturnId=null;setTimeout(()=>openDetail(r),150);}">✕</button>
     </div>
     <div class="form-grid">
       <div class="form-group">
@@ -975,7 +975,7 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn-ghost" onclick="closeModal('modal-patient')">Cancelar</button>
+      <button class="btn-ghost" onclick="closeModal('modal-patient');if(_detailReturnId){const r=_detailReturnId;_detailReturnId=null;setTimeout(()=>openDetail(r),150);}">Cancelar</button>
       <button class="btn-accent" onclick="savePatient()">Guardar Paciente</button>
     </div>
   </div>
@@ -1837,6 +1837,14 @@ function renderPatients(pts) {
 function filterPatients(f) { patientFilter=f; renderPatients(); }
 function handleSearch(v) { searchQ=v; if(currentView==='pacientes') renderPatients(); }
 
+// Abre el formulario de edición desde el expediente y regresa al detalle al guardar
+let _detailReturnId = null;
+function editPatientFromDetail(id) {
+  _detailReturnId = id;
+  closeModal('modal-detail');
+  openNewPatient(id);
+}
+
 function openNewPatient(id) {
   document.getElementById('modal-patient-title').textContent = id ? 'Editar Paciente' : 'Nuevo Paciente';
   ['nombre','apellido','cedula','nacimiento','sexo','tel','email','direccion','alergias','notas'].forEach(f => {
@@ -1898,6 +1906,12 @@ function savePatient() {
   renderDashboard(); if(currentView==='pacientes') renderPatients();
   document.getElementById('badge-pacientes').textContent = DB.patients.length;
   document.getElementById('stat-total').textContent = DB.patients.length;
+  // Si venía del expediente, volver a abrirlo con datos actualizados
+  if (_detailReturnId) {
+    const retId = _detailReturnId;
+    _detailReturnId = null;
+    setTimeout(() => openDetail(retId), 150);
+  }
 }
 
 function deletePatient(id) {
@@ -1922,15 +1936,16 @@ function openDetail(id) {
   document.getElementById('modal-detail-content').innerHTML = `
     <div class="detail-header">
       <div class="detail-avatar" style="background:${col}22;color:${col}">${initials(p)}</div>
-      <div>
+      <div style="flex:1">
         <div class="detail-name">${p.nombre} ${p.apellido}</div>
         <div class="detail-meta">
-          <span class="meta-chip">📋 ${p.cedula}</span>
-          <span class="meta-chip">🎂 ${getAge(p.nacimiento)} años</span>
-          <span class="meta-chip">${p.sexo==='M'?'♂ Masculino':'♀ Femenino'}</span>
+          ${p.cedula?`<span class="meta-chip">📋 ${p.cedula}</span>`:''}
+          ${p.nacimiento?`<span class="meta-chip">🎂 ${getAge(p.nacimiento)} años</span>`:''}
+          ${p.sexo?`<span class="meta-chip">${p.sexo==='M'?'♂ Masculino':'♀ Femenino'}</span>`:''}
           <span class="meta-chip">${cons.length} consulta${cons.length!==1?'s':''}</span>
         </div>
       </div>
+      <button class="btn-ghost" style="padding:8px 14px;font-size:0.82rem;flex-shrink:0" onclick="editPatientFromDetail('${id}')">✏️ Editar</button>
     </div>
     <div class="detail-grid" style="margin-bottom:24px;">
       <div class="card" style="padding:16px">
