@@ -550,11 +550,31 @@
     .info-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
     .info-key { font-size: 0.78rem; color: var(--text3); }
     .info-val { font-size: 0.875rem; font-weight: 500; }
+  /* ── CIE-10 Search ── */
+  .cie10-wrap { position:relative; }
+  .cie10-input { width:100%; padding:10px 14px; border:1.5px solid var(--border); border-radius:10px; background:var(--surface); color:var(--text); font-size:0.9rem; outline:none; transition:border-color .2s; }
+  .cie10-input:focus { border-color:var(--accent); }
+  .cie10-dropdown { position:absolute; top:calc(100% + 4px); left:0; right:0; background:var(--surface); border:1.5px solid var(--border); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.12); z-index:999; max-height:220px; overflow-y:auto; list-style:none; margin:0; padding:4px 0; }
+  .cie10-dropdown li { padding:9px 14px; cursor:pointer; font-size:0.85rem; display:flex; gap:10px; align-items:baseline; transition:background .15s; }
+  .cie10-dropdown li:hover { background:var(--accent)18; }
+  .cie10-code { font-weight:700; color:var(--accent); min-width:52px; font-size:0.8rem; }
+  .cie10-desc { color:var(--text); }
+  .cie10-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; min-height:0; }
+  .cie10-chip { display:inline-flex; align-items:center; gap:6px; background:var(--accent)18; color:var(--accent); border:1px solid var(--accent)40; border-radius:20px; padding:4px 10px 4px 12px; font-size:0.78rem; font-weight:600; }
+  .cie10-chip-remove { cursor:pointer; font-size:1rem; line-height:1; color:var(--accent); opacity:.7; transition:opacity .15s; border:none; background:none; padding:0; }
+  .cie10-chip-remove:hover { opacity:1; }
+  .cie10-empty { padding:12px 14px; font-size:0.83rem; color:var(--text3); text-align:center; }
+  /* ── Procedimiento Estético ── */
+  .proc-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .proc-detail { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px; }
+  @media(max-width:600px){ .proc-grid,.proc-detail { grid-template-columns:1fr; } }
   </style>
   <!-- Supabase JS SDK (CDN) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Configuración y operaciones de Supabase -->
   <script src="supabase-client.js"></script>
+  <script src="cie10.js"></script>
+  <script src="procedimientos.js"></script>
 </head>
 <body>
 
@@ -1054,7 +1074,36 @@
     <div class="consult-section">
       <div class="consult-section-title">🩺 Diagnóstico y Tratamiento</div>
       <div class="form-grid">
-        <div class="form-group full"><label>Diagnóstico *</label><input type="text" id="c-diagnostico" placeholder="Ej: Hipertensión Arterial Esencial"></div>
+        <div class="form-group full">
+          <label>Código CIE-10 <span style="font-size:0.73rem;color:var(--text3);font-weight:400">(Clasificación Internacional de Enfermedades — para seguros e historia clínica)</span></label>
+          <div class="cie10-wrap">
+            <input class="cie10-input" type="text" id="c-cie10-search" placeholder="🔍 Buscar por código o descripción..." autocomplete="off" oninput="searchCIE10(this.value)" onkeydown="cie10KeyNav(event)">
+            <ul id="cie10-dropdown" class="cie10-dropdown" style="display:none"></ul>
+          </div>
+          <div id="cie10-chips" class="cie10-chips"></div>
+        </div>
+        <div class="form-group full">
+          <label>Diagnóstico / Descripción clínica *</label>
+          <input type="text" id="c-diagnostico" placeholder="Ej: Hipertensión Arterial Esencial, Liposucción abdominal...">
+          <small style="color:var(--text3);font-size:0.73rem;margin-top:4px;display:block">💡 Se autocompleta al seleccionar un código CIE-10, o escribe libremente</small>
+        </div>
+        <div class="form-group full">
+          <label>Procedimiento Estético <span style="font-size:0.73rem;color:var(--text3);font-weight:400">(opcional)</span></label>
+          <div class="proc-grid">
+            <select id="c-cat-estetica" onchange="onCatEsteticaChange()">
+              <option value="">— Seleccionar categoría —</option>
+            </select>
+            <select id="c-proc-nombre">
+              <option value="">— Seleccionar procedimiento —</option>
+            </select>
+          </div>
+          <div class="proc-detail" id="proc-detail-row">
+            <select id="c-proc-tecnica">
+              <option value="">— Técnica —</option>
+            </select>
+            <input type="text" id="c-proc-zona" placeholder="Zona(s): ej. Abdomen, Flancos">
+          </div>
+        </div>
         <div class="form-group full"><label>Examen Físico</label><textarea id="c-examen" placeholder="Hallazgos del examen físico, sistemas revisados..." rows="3"></textarea></div>
         <div class="form-group full"><label>Tratamiento / Receta</label><textarea id="c-tratamiento" placeholder="Medicamentos, dosis, vía y frecuencia..." rows="3"></textarea></div>
         <div class="form-group full"><label>Notas Clínicas</label><textarea id="c-notas" placeholder="Observaciones adicionales, plan de seguimiento..." rows="2"></textarea></div>
@@ -1203,6 +1252,173 @@ function validarTelefono(input) {
 
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// CIE-10 SEARCH
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let _cie10Selected = []; // [{c:'E11',d:'Diabetes mellitus tipo 2'}]
+let _cie10DropIndex = -1;
+
+function initCIE10() {
+  // Populate procedure category dropdown
+  if (typeof PROCEDIMIENTOS_ESTETICOS !== 'undefined') {
+    const sel = document.getElementById('c-cat-estetica');
+    if (sel) {
+      sel.innerHTML = '<option value="">— Seleccionar categoría —</option>' +
+        PROCEDIMIENTOS_ESTETICOS.map(cat => `<option value="${cat.categoria}">${cat.icono} ${cat.categoria}</option>`).join('');
+    }
+  }
+}
+
+function searchCIE10(q) {
+  const dd = document.getElementById('cie10-dropdown');
+  if (!q || q.length < 2) { dd.style.display = 'none'; return; }
+  const term = q.toLowerCase();
+  const results = (CIE10_DB || []).filter(e =>
+    e.c.toLowerCase().startsWith(term) || e.d.toLowerCase().includes(term)
+  ).slice(0, 12);
+  if (!results.length) {
+    dd.innerHTML = '<li class="cie10-empty">Sin resultados para "' + q + '"</li>';
+    dd.style.display = 'block'; _cie10DropIndex = -1; return;
+  }
+  _cie10DropIndex = -1;
+  dd.innerHTML = results.map((e, i) =>
+    `<li data-i="${i}" data-c="${e.c}" data-d="${encodeURIComponent(e.d)}" onmousedown="addCIE10Code('${e.c}','${e.d.replace(/'/g,"\\'").replace(/`/g,"\\`")}')">
+      <span class="cie10-code">${e.c}</span>
+      <span class="cie10-desc">${e.d}</span>
+    </li>`
+  ).join('');
+  dd.style.display = 'block';
+}
+
+function cie10KeyNav(e) {
+  const dd = document.getElementById('cie10-dropdown');
+  const items = dd.querySelectorAll('li[data-c]');
+  if (!items.length) return;
+  if (e.key === 'ArrowDown') { e.preventDefault(); _cie10DropIndex = Math.min(_cie10DropIndex+1, items.length-1); items.forEach((li,i)=>li.style.background=i===_cie10DropIndex?'var(--accent)22':''); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); _cie10DropIndex = Math.max(_cie10DropIndex-1, 0); items.forEach((li,i)=>li.style.background=i===_cie10DropIndex?'var(--accent)22':''); }
+  else if (e.key === 'Enter' && _cie10DropIndex >= 0) { e.preventDefault(); const li = items[_cie10DropIndex]; addCIE10Code(li.dataset.c, decodeURIComponent(li.dataset.d)); }
+  else if (e.key === 'Escape') { dd.style.display = 'none'; }
+}
+
+function addCIE10Code(codigo, descripcion) {
+  if (_cie10Selected.find(x => x.c === codigo)) {
+    document.getElementById('cie10-dropdown').style.display = 'none';
+    document.getElementById('c-cie10-search').value = '';
+    return;
+  }
+  _cie10Selected.push({ c: codigo, d: descripcion });
+  renderCIE10Chips();
+  document.getElementById('cie10-dropdown').style.display = 'none';
+  document.getElementById('c-cie10-search').value = '';
+  // Auto-fill diagnostico text if empty
+  const diagInput = document.getElementById('c-diagnostico');
+  if (!diagInput.value.trim()) diagInput.value = descripcion;
+}
+
+function removeCIE10Code(codigo) {
+  _cie10Selected = _cie10Selected.filter(x => x.c !== codigo);
+  renderCIE10Chips();
+}
+
+function renderCIE10Chips() {
+  const wrap = document.getElementById('cie10-chips');
+  if (!wrap) return;
+  wrap.innerHTML = _cie10Selected.map(e =>
+    `<span class="cie10-chip">
+      <strong>${e.c}</strong> — ${e.d}
+      <button class="cie10-chip-remove" onclick="removeCIE10Code('${e.c}')" title="Quitar">✕</button>
+    </span>`
+  ).join('');
+}
+
+function resetCIE10() {
+  _cie10Selected = [];
+  renderCIE10Chips();
+  const search = document.getElementById('c-cie10-search');
+  if (search) search.value = '';
+  const dd = document.getElementById('cie10-dropdown');
+  if (dd) dd.style.display = 'none';
+}
+
+// Close dropdown on outside click
+document.addEventListener('click', e => {
+  if (!e.target.closest('.cie10-wrap')) {
+    const dd = document.getElementById('cie10-dropdown');
+    if (dd) dd.style.display = 'none';
+  }
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PROCEDIMIENTOS ESTÉTICOS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function onCatEsteticaChange() {
+  const cat = document.getElementById('c-cat-estetica').value;
+  const procSel = document.getElementById('c-proc-nombre');
+  const tecSel = document.getElementById('c-proc-tecnica');
+  procSel.innerHTML = '<option value="">— Seleccionar procedimiento —</option>';
+  tecSel.innerHTML = '<option value="">— Técnica —</option>';
+  if (!cat || typeof PROCEDIMIENTOS_ESTETICOS === 'undefined') return;
+  const found = PROCEDIMIENTOS_ESTETICOS.find(x => x.categoria === cat);
+  if (!found) return;
+  procSel.innerHTML += found.items.map(p => `<option value="${p.nombre}">${p.nombre}</option>`).join('');
+  procSel.onchange = () => onProcNombreChange(found);
+}
+
+function onProcNombreChange(catObj) {
+  const nombre = document.getElementById('c-proc-nombre').value;
+  const tecSel = document.getElementById('c-proc-tecnica');
+  tecSel.innerHTML = '<option value="">— Técnica —</option>';
+  if (!nombre || !catObj) return;
+  const proc = catObj.items.find(p => p.nombre === nombre);
+  if (proc && proc.tecnicas) {
+    tecSel.innerHTML += proc.tecnicas.map(t => `<option value="${t}">${t}</option>`).join('');
+  }
+}
+
+function getProcedimientoEstetico() {
+  const cat = document.getElementById('c-cat-estetica')?.value || '';
+  const nombre = document.getElementById('c-proc-nombre')?.value || '';
+  const tecnica = document.getElementById('c-proc-tecnica')?.value || '';
+  const zona = document.getElementById('c-proc-zona')?.value.trim() || '';
+  if (!cat && !nombre) return null;
+  return { categoria: cat, nombre, tecnica, zona };
+}
+
+function setProcedimientoEstetico(proc) {
+  if (!proc) return;
+  const catSel = document.getElementById('c-cat-estetica');
+  if (catSel && proc.categoria) {
+    catSel.value = proc.categoria;
+    onCatEsteticaChange();
+    setTimeout(() => {
+      const procSel = document.getElementById('c-proc-nombre');
+      if (procSel && proc.nombre) {
+        procSel.value = proc.nombre;
+        const catObj = PROCEDIMIENTOS_ESTETICOS?.find(x => x.categoria === proc.categoria);
+        if (catObj) onProcNombreChange(catObj);
+        setTimeout(() => {
+          const tecSel = document.getElementById('c-proc-tecnica');
+          if (tecSel && proc.tecnica) tecSel.value = proc.tecnica;
+        }, 50);
+      }
+    }, 50);
+  }
+  const zonaInput = document.getElementById('c-proc-zona');
+  if (zonaInput) zonaInput.value = proc.zona || '';
+}
+
+function resetProcedimientoEstetico() {
+  const catSel = document.getElementById('c-cat-estetica');
+  const procSel = document.getElementById('c-proc-nombre');
+  const tecSel = document.getElementById('c-proc-tecnica');
+  const zonaInput = document.getElementById('c-proc-zona');
+  if (catSel) catSel.value = '';
+  if (procSel) procSel.innerHTML = '<option value="">— Seleccionar procedimiento —</option>';
+  if (tecSel) tecSel.innerHTML = '<option value="">— Técnica —</option>';
+  if (zonaInput) zonaInput.value = '';
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // DATA STORE
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const DB = {
@@ -1287,6 +1503,7 @@ function showApp() {
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     initApp();
+    initCIE10();
   }, 400);
 }
 
@@ -1790,6 +2007,9 @@ function openNewConsult(patientId) {
   ['c-ant-personales','c-ant-familiares'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('image-preview').innerHTML = '';
   _pendingImages = [];
+  resetCIE10();
+  resetProcedimientoEstetico();
+  _editingConsultId = null;
   openModal('modal-consult');
 }
 
@@ -1828,6 +2048,8 @@ async function saveConsult() {
     examen: document.getElementById('c-examen').value.trim(),
     notas: document.getElementById('c-notas').value.trim(),
     signos, antecedentes, imagenes: [],
+    cie10: [..._cie10Selected],
+    procedimientoEstetico: getProcedimientoEstetico(),
     tags: [diag.split(' ')[0]]
   };
 
@@ -1838,6 +2060,7 @@ async function saveConsult() {
     if (idx !== -1) {
       c.id = _editingConsultId;
       c.imagenes = DB.consultations[idx].imagenes || [];
+      c.cie10 = c.cie10.length ? c.cie10 : (DB.consultations[idx].cie10 || []);
       DB.consultations[idx] = c;
     }
     _editingConsultId = null;
@@ -2064,9 +2287,21 @@ function openConsultDetail(consultId) {
     <!-- Diagnóstico -->
     <div class="cd-section">
       <div class="cd-section-title">🩺 Diagnóstico</div>
+      ${c.cie10 && c.cie10.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">${c.cie10.map(e=>`<span style="display:inline-flex;align-items:center;gap:5px;background:var(--accent)18;color:var(--accent);border:1px solid var(--accent)40;border-radius:20px;padding:3px 10px;font-size:0.75rem;font-weight:700"><strong>${e.c}</strong> — ${e.d}</span>`).join('')}</div>` : ''}
       <div class="cd-diagnostico-box">${c.diagnostico}</div>
       ${c.examen?`<div class="cd-subsection">Examen Físico</div><div class="cd-text-block">${c.examen}</div>`:''}
     </div>
+
+    <!-- Procedimiento Estético -->
+    ${c.procedimientoEstetico && c.procedimientoEstetico.nombre ? `
+    <div class="cd-section">
+      <div class="cd-section-title">💉 Procedimiento Estético</div>
+      <div style="background:var(--surface2);border-radius:10px;padding:12px 16px;font-size:0.9rem;line-height:1.8">
+        <div><strong>${c.procedimientoEstetico.categoria}</strong> › ${c.procedimientoEstetico.nombre}</div>
+        ${c.procedimientoEstetico.tecnica ? `<div style="color:var(--text3)">Técnica: ${c.procedimientoEstetico.tecnica}</div>` : ''}
+        ${c.procedimientoEstetico.zona ? `<div style="color:var(--text3)">Zona: ${c.procedimientoEstetico.zona}</div>` : ''}
+      </div>
+    </div>` : ''}
 
     <!-- Tratamiento -->
     ${c.tratamiento?`<div class="cd-section">
@@ -2145,6 +2380,12 @@ function editConsult() {
 
   document.getElementById('image-preview').innerHTML = '';
   _pendingImages = [];
+
+  // CIE-10 y procedimiento estético
+  _cie10Selected = c.cie10 || [];
+  renderCIE10Chips();
+  if (c.procedimientoEstetico) setProcedimientoEstetico(c.procedimientoEstetico);
+  else resetProcedimientoEstetico();
 
   // Change modal title and button
   document.querySelector('#modal-consult .modal-title').textContent = '✏️ Editar Consulta';
@@ -2270,6 +2511,7 @@ function printConsultReport() {
     <!-- Diagnóstico -->
     <div style="margin-bottom:18px;">
       <div style="font-size:0.72rem;text-transform:uppercase;font-weight:700;color:#2b6cb0;letter-spacing:.08em;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #c9dff5">🩺 Diagnóstico</div>
+      ${c.cie10 && c.cie10.length ? `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">${c.cie10.map(e=>`<span style="background:#e8f0fe;color:#2b6cb0;border:1px solid #c9dff5;border-radius:16px;padding:2px 10px;font-size:0.75rem;font-weight:700">${e.c} — ${e.d}</span>`).join('')}</div>` : ''}
       <div style="font-size:1rem;font-weight:700;border-left:4px solid #2b6cb0;padding:10px 14px;background:#f7fbff;border-radius:0 8px 8px 0">${c.diagnostico}</div>
     </div>
 
