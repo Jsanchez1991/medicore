@@ -1665,8 +1665,15 @@ async function initApp() {
       if (remote) {
         // Solo reemplazar si hay datos reales en Supabase
         if (remote.patients.length > 0 || remote.consultations.length > 0 || remote.appointments.length > 0) {
-          DB.patients      = remote.patients;
-          DB.consultations = remote.consultations;
+          DB.patients     = remote.patients;
+          // Preservar imágenes locales si Supabase aún no tiene la columna imagenes
+          DB.consultations = remote.consultations.map(rc => {
+            const local = DB.consultations.find(lc => lc.id === rc.id);
+            if (local && (!rc.imagenes || rc.imagenes.length === 0) && local.imagenes && local.imagenes.length > 0) {
+              return { ...rc, imagenes: local.imagenes };
+            }
+            return rc;
+          });
           DB.appointments  = remote.appointments;
           DB.save();
           renderDashboard();
@@ -2415,6 +2422,8 @@ async function uploadDetailImages(files) {
     if (!c.imagenes) c.imagenes = [];
     c.imagenes.push(...urls);
     DB.save();
+    // Sync con Supabase
+    sbSaveConsult(c).catch(e => console.warn('Sync imágenes:', e));
     // Update grid
     urls.forEach((url,i) => {
       const idx = (c.imagenes.length - urls.length + i);
@@ -2444,6 +2453,7 @@ function removeConsultImage(url, elId) {
   const { c } = _currentConsult;
   c.imagenes = (c.imagenes||[]).filter(u => u !== url);
   DB.save();
+  sbSaveConsult(c).catch(e => console.warn('Sync eliminar imagen:', e));
   document.getElementById(elId)?.remove();
   showToast('success','Imagen eliminada','');
 }

@@ -161,6 +161,7 @@ async function sbSaveConsult(consult) {
     tags:        consult.tags        || [],
     cie10:                  consult.cie10                  || [],
     procedimiento_estetico: consult.procedimientoEstetico  || null,
+    imagenes:               consult.imagenes               || [],
   }
 
   if (isUUID(consult.id)) {
@@ -238,6 +239,7 @@ function mapConsultFromDB(c) {
     tags:         c.tags        || [],
     cie10:                 c.cie10                  || [],
     procedimientoEstetico: c.procedimiento_estetico || null,
+    imagenes:              c.imagenes               || [],
   }
 }
 
