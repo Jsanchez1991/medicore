@@ -2611,6 +2611,19 @@ function printConsultReport() {
         <div style="font-size:0.875rem;line-height:1.75;white-space:pre-wrap;padding:14px 16px;background:#fffdf0;border:1px solid #f0e6a0;border-radius:10px;color:#2d3748">${c.notas}</div>
       </div>`:''}
 
+      <!-- Evidencia Fotográfica -->
+      ${c.imagenes && c.imagenes.length ? `
+      <div style="margin-bottom:24px;">
+        ${secTitle('📷','Evidencia Fotográfica')}
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;">
+          ${c.imagenes.map((url,i)=>`
+            <div style="border-radius:10px;overflow:hidden;border:1px solid #dde8f8;page-break-inside:avoid;">
+              <img src="${url}" style="width:100%;height:150px;object-fit:cover;display:block;" alt="Imagen ${i+1}">
+              <div style="background:#f8faff;padding:4px 8px;font-size:0.65rem;color:#888;text-align:center;">Imagen ${i+1}</div>
+            </div>`).join('')}
+        </div>
+      </div>` : ''}
+
       <!-- Firma -->
       <div style="margin-top:40px;padding-top:20px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:flex-end;">
         <div style="font-size:0.7rem;color:#aaa;line-height:1.6">
