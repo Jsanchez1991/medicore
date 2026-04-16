@@ -336,6 +336,27 @@
     .form-group select option { background: var(--bg2); }
     .form-group textarea { resize: vertical; min-height: 80px; }
     .modal-footer { display: flex; gap: 12px; margin-top: 24px; justify-content: flex-end; }
+    .modal-xl { max-width: 780px !important; }
+    .consult-section { margin-bottom: 22px; border-bottom: 1px solid var(--border2); padding-bottom: 20px; }
+    .consult-section:last-of-type { border-bottom: none; margin-bottom: 0; }
+    .consult-section-title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 7px; }
+    .vitals-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .vital-item { display: flex; flex-direction: column; gap: 5px; }
+    .vital-item label { font-size: 0.68rem; font-weight: 500; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; }
+    .vital-item input { padding: 9px 8px; background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius-sm); color: var(--text); font-size: 0.85rem; outline: none; text-align: center; width: 100%; box-sizing: border-box; transition: border-color 0.2s; }
+    .vital-item input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(46,232,195,0.08); }
+    .vital-item input[readonly] { color: var(--accent); font-weight: 600; background: rgba(46,232,195,0.05); cursor: default; }
+    .upload-area { border: 2px dashed var(--border2); border-radius: var(--radius-sm); padding: 22px; text-align: center; cursor: pointer; transition: all 0.2s; }
+    .upload-area:hover { border-color: var(--accent); background: rgba(46,232,195,0.04); }
+    .upload-placeholder span { font-size: 1.8rem; display: block; margin-bottom: 6px; }
+    .upload-placeholder p { color: var(--text2); font-size: 0.875rem; margin: 0 0 3px; }
+    .upload-placeholder small { color: var(--text3); font-size: 0.72rem; }
+    .image-preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; margin-top: 12px; }
+    .preview-item { position: relative; border-radius: var(--radius-sm); overflow: hidden; aspect-ratio: 1; border: 1px solid var(--border2); }
+    .preview-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .preview-remove { position: absolute; top: 3px; right: 3px; background: rgba(0,0,0,0.65); color: #fff; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 0.65rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .preview-remove:hover { background: var(--danger); }
+    @media (max-width: 600px) { .vitals-grid { grid-template-columns: repeat(2, 1fr); } .modal-xl { max-width: 100% !important; } }
     .btn-danger { padding: 10px 18px; border-radius: var(--radius-sm); border: 1px solid var(--danger); background: transparent; color: var(--danger); font-family: var(--font-body); font-size: 0.875rem; cursor: pointer; transition: all 0.15s; }
     .btn-danger:hover { background: rgba(255,95,109,0.12); }
 
@@ -876,45 +897,95 @@
 
 <!-- ── MODAL CONSULTA ── -->
 <div class="modal-overlay" id="modal-consult">
-  <div class="modal">
+  <div class="modal modal-xl">
     <div class="modal-header">
-      <div class="modal-title">Nueva Consulta</div>
+      <div class="modal-title">📋 Nueva Consulta</div>
       <button class="modal-close" onclick="closeModal('modal-consult')">✕</button>
     </div>
-    <div class="form-grid">
-      <div class="form-group full">
-        <label>Paciente</label>
-        <select id="c-paciente"></select>
-      </div>
-      <div class="form-group">
-        <label>Tipo de Consulta</label>
-        <select id="c-tipo">
-          <option>Consulta General</option>
-          <option>Control</option>
-          <option>Urgencia</option>
-          <option>Seguimiento</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Fecha</label>
-        <input type="date" id="c-fecha">
-      </div>
-      <div class="form-group full">
-        <label>Diagnóstico</label>
-        <input type="text" id="c-diagnostico" placeholder="Ej: Hipertensión Arterial">
-      </div>
-      <div class="form-group full">
-        <label>Tratamiento / Receta</label>
-        <textarea id="c-tratamiento" placeholder="Medicamentos, dosis, indicaciones..."></textarea>
-      </div>
-      <div class="form-group full">
-        <label>Notas Clínicas</label>
-        <textarea id="c-notas" placeholder="Observaciones, signos vitales, examen físico..."></textarea>
+
+    <!-- Datos básicos -->
+    <div class="consult-section">
+      <div class="consult-section-title">🧑‍⚕️ Datos de la Consulta</div>
+      <div class="form-grid">
+        <div class="form-group full">
+          <label>Paciente</label>
+          <select id="c-paciente"></select>
+        </div>
+        <div class="form-group">
+          <label>Tipo de Consulta</label>
+          <select id="c-tipo">
+            <option>Consulta General</option>
+            <option>Primera Vez</option>
+            <option>Control</option>
+            <option>Urgencia</option>
+            <option>Seguimiento</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Fecha</label>
+          <input type="date" id="c-fecha">
+        </div>
       </div>
     </div>
+
+    <!-- Signos Vitales -->
+    <div class="consult-section">
+      <div class="consult-section-title">📊 Signos Vitales</div>
+      <div class="vitals-grid">
+        <div class="vital-item"><label>Peso (kg)</label><input type="number" id="c-peso" placeholder="0.0" step="0.1" oninput="calcIMC()"></div>
+        <div class="vital-item"><label>Talla (cm)</label><input type="number" id="c-talla" placeholder="0" oninput="calcIMC()"></div>
+        <div class="vital-item"><label>IMC</label><input type="text" id="c-imc" placeholder="auto" readonly></div>
+        <div class="vital-item"><label>Temperatura (°C)</label><input type="number" id="c-temp" placeholder="36.5" step="0.1"></div>
+        <div class="vital-item"><label>F. Respiratoria (rpm)</label><input type="number" id="c-fr" placeholder="16"></div>
+        <div class="vital-item"><label>Presión Arterial</label><input type="text" id="c-pa" placeholder="120/80"></div>
+        <div class="vital-item"><label>Sat. O₂ (%)</label><input type="number" id="c-sato2" placeholder="98" min="0" max="100"></div>
+        <div class="vital-item"><label>F. Cardíaca (lpm)</label><input type="number" id="c-fc" placeholder="72"></div>
+      </div>
+    </div>
+
+    <!-- Antecedentes -->
+    <div class="consult-section">
+      <div class="consult-section-title">📁 Antecedentes</div>
+      <div class="form-grid">
+        <div class="form-group"><label>Antecedentes Personales</label><textarea id="c-ant-personales" placeholder="Enfermedades previas, condiciones crónicas..." rows="2"></textarea></div>
+        <div class="form-group"><label>Antecedentes Familiares</label><textarea id="c-ant-familiares" placeholder="Diabetes, HTA, cáncer en familia..." rows="2"></textarea></div>
+        <div class="form-group"><label>Alergias</label><input type="text" id="c-alergias" placeholder="Penicilina, mariscos, látex..."></div>
+        <div class="form-group"><label>Medicamentos Actuales</label><input type="text" id="c-medicamentos-act" placeholder="Nombre y dosis..."></div>
+        <div class="form-group full"><label>Intervenciones Quirúrgicas</label><input type="text" id="c-cirugias" placeholder="Tipo y año aproximado..."></div>
+      </div>
+    </div>
+
+    <!-- Diagnóstico y Tratamiento -->
+    <div class="consult-section">
+      <div class="consult-section-title">🩺 Diagnóstico y Tratamiento</div>
+      <div class="form-grid">
+        <div class="form-group full"><label>Diagnóstico *</label><input type="text" id="c-diagnostico" placeholder="Ej: Hipertensión Arterial Esencial"></div>
+        <div class="form-group full"><label>Examen Físico</label><textarea id="c-examen" placeholder="Hallazgos del examen físico, sistemas revisados..." rows="3"></textarea></div>
+        <div class="form-group full"><label>Tratamiento / Receta</label><textarea id="c-tratamiento" placeholder="Medicamentos, dosis, vía y frecuencia..." rows="3"></textarea></div>
+        <div class="form-group full"><label>Notas Clínicas</label><textarea id="c-notas" placeholder="Observaciones adicionales, plan de seguimiento..." rows="2"></textarea></div>
+      </div>
+    </div>
+
+    <!-- Evidencia Fotográfica -->
+    <div class="consult-section">
+      <div class="consult-section-title">📷 Evidencia Fotográfica</div>
+      <div class="upload-area" id="upload-area"
+           onclick="document.getElementById('c-images').click()"
+           ondragover="event.preventDefault()"
+           ondrop="handleImageDrop(event)">
+        <input type="file" id="c-images" multiple accept="image/*" style="display:none" onchange="previewImages(this.files)">
+        <div class="upload-placeholder">
+          <span>📁</span>
+          <p>Clic para subir imágenes o arrastra aquí</p>
+          <small>PNG, JPG, WEBP — máx. 5 MB por imagen</small>
+        </div>
+      </div>
+      <div id="image-preview" class="image-preview-grid"></div>
+    </div>
+
     <div class="modal-footer">
       <button class="btn-ghost" onclick="closeModal('modal-consult')">Cancelar</button>
-      <button class="btn-accent" onclick="saveConsult()">Registrar Consulta</button>
+      <button class="btn-accent" onclick="saveConsult()">📋 Registrar Consulta</button>
     </div>
   </div>
 </div>
@@ -1574,40 +1645,118 @@ function openDetail(id) {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // CONSULTATIONS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let _pendingImages = [];
+
+function calcIMC() {
+  const peso = parseFloat(document.getElementById('c-peso').value);
+  const tallaCm = parseFloat(document.getElementById('c-talla').value);
+  const imcEl = document.getElementById('c-imc');
+  if (peso > 0 && tallaCm > 0) {
+    const m = tallaCm / 100;
+    const imc = (peso / (m * m)).toFixed(1);
+    let cat = imc < 18.5 ? ' Bajo peso' : imc < 25 ? ' Normal' : imc < 30 ? ' Sobrepeso' : ' Obesidad';
+    imcEl.value = imc + ' —' + cat;
+  } else { imcEl.value = ''; }
+}
+
+function previewImages(files) {
+  const preview = document.getElementById('image-preview');
+  Array.from(files).forEach(file => {
+    if (file.size > 5 * 1024 * 1024) { showToast('warn','Imagen grande', file.name + ' supera 5MB'); return; }
+    const idx = _pendingImages.push(file) - 1;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const div = document.createElement('div');
+      div.className = 'preview-item';
+      div.innerHTML = `<img src="${e.target.result}" alt="${file.name}"><button class="preview-remove" onclick="_pendingImages[${idx}]=null;this.parentElement.remove()">✕</button>`;
+      preview.appendChild(div);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function handleImageDrop(e) {
+  e.preventDefault();
+  previewImages(e.dataTransfer.files);
+}
+
 function openNewConsult(patientId) {
   const sel = document.getElementById('c-paciente');
   sel.innerHTML = DB.patients.map(p=>`<option value="${p.id}" ${p.id===patientId?'selected':''}>${p.nombre} ${p.apellido}</option>`).join('');
   document.getElementById('c-fecha').value = new Date().toISOString().split('T')[0];
-  ['diagnostico','tratamiento','notas'].forEach(f=>document.getElementById('c-'+f).value='');
+  ['diagnostico','tratamiento','notas','examen','alergias','cirugias','pa','medicamentos-act'].forEach(f=>{const el=document.getElementById('c-'+f);if(el)el.value='';});
+  ['peso','talla','imc','temp','fr','sato2','fc'].forEach(f=>{const el=document.getElementById('c-'+f);if(el)el.value='';});
+  ['c-ant-personales','c-ant-familiares'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('image-preview').innerHTML = '';
+  _pendingImages = [];
   openModal('modal-consult');
 }
 
-function saveConsult() {
+async function saveConsult() {
   const pid = document.getElementById('c-paciente').value;
   const diag = document.getElementById('c-diagnostico').value.trim();
   if(!pid||!diag){ showToast('error','Campos requeridos','Paciente y diagnóstico son obligatorios'); return; }
-  const c = {
-    id:uid(), pacienteId:pid,
-    tipo:document.getElementById('c-tipo').value,
-    fecha:new Date(document.getElementById('c-fecha').value).toISOString(),
-    diagnostico:diag,
-    tratamiento:document.getElementById('c-tratamiento').value.trim(),
-    notas:document.getElementById('c-notas').value.trim(),
-    tags:[diag.split(' ')[0]]
+
+  const signos = {
+    peso: document.getElementById('c-peso').value,
+    talla: document.getElementById('c-talla').value,
+    imc: document.getElementById('c-imc').value,
+    temperatura: document.getElementById('c-temp').value,
+    frecResp: document.getElementById('c-fr').value,
+    presionArterial: document.getElementById('c-pa').value,
+    satO2: document.getElementById('c-sato2').value,
+    frecCard: document.getElementById('c-fc').value,
   };
+  const antecedentes = {
+    personales: document.getElementById('c-ant-personales').value.trim(),
+    familiares: document.getElementById('c-ant-familiares').value.trim(),
+    alergias: document.getElementById('c-alergias').value.trim(),
+    medicamentos: document.getElementById('c-medicamentos-act').value.trim(),
+    cirugias: document.getElementById('c-cirugias').value.trim(),
+  };
+
+  const c = {
+    id: uid(), pacienteId: pid,
+    tipo: document.getElementById('c-tipo').value,
+    fecha: new Date(document.getElementById('c-fecha').value).toISOString(),
+    diagnostico: diag,
+    tratamiento: document.getElementById('c-tratamiento').value.trim(),
+    examen: document.getElementById('c-examen').value.trim(),
+    notas: document.getElementById('c-notas').value.trim(),
+    signos, antecedentes, imagenes: [],
+    tags: [diag.split(' ')[0]]
+  };
+
   DB.consultations.push(c);
   const p = DB.patients.find(x=>x.id===pid);
   if(p) p.estado = 'activo';
-  DB.save(); closeModal('modal-consult');
-  // Sync con Supabase en background
+  DB.save();
+  closeModal('modal-consult');
+
+  // Subir imágenes a Supabase Storage
+  const validImages = _pendingImages.filter(f => f !== null);
+  if (validImages.length > 0 && sbConfigured()) {
+    showToast('info','Subiendo imágenes',`${validImages.length} archivo(s)...`);
+    try {
+      const urls = await sbUploadImages(c.id, validImages);
+      c.imagenes = urls;
+      DB.save();
+      if(urls.length) showToast('success','Imágenes guardadas',`${urls.length} imagen(es) subida(s)`);
+    } catch(e) { console.warn('Error subiendo imágenes:', e); }
+  }
+  _pendingImages = [];
+
+  // Sync con Supabase
   sbSaveConsult(c).then(newId => {
     if(newId && newId !== c.id) {
       const idx = DB.consultations.findIndex(x => x.id === c.id);
       if(idx !== -1) { DB.consultations[idx].id = newId; DB.save(); }
     }
   }).catch(e => console.warn('Sync consulta:', e));
+
   showToast('success','Consulta registrada',`${p?.nombre} ${p?.apellido} — ${diag}`);
-  renderDashboard(); document.getElementById('stat-consult').textContent = DB.consultations.length;
+  renderDashboard();
+  document.getElementById('stat-consult').textContent = DB.consultations.length;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

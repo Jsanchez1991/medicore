@@ -260,3 +260,27 @@ function toDateStr(isoOrDate) {
   if (!isoOrDate) return new Date().toISOString().split('T')[0]
   return new Date(isoOrDate).toISOString().split('T')[0]
 }
+
+// ════════════════════════════════════════════════════════════════
+// STORAGE — IMÁGENES DE CONSULTA
+// ════════════════════════════════════════════════════════════════
+
+async function sbUploadImages(consultId, files) {
+  const BUCKET = 'medicore-imagenes'
+  const urls = []
+  for (const file of files) {
+    const ext = file.name.split('.').pop().toLowerCase()
+    const path = `consultas/${consultId}/${Date.now()}_${Math.random().toString(36).substr(2,6)}.${ext}`
+    const { data, error } = await sb.storage.from(BUCKET).upload(path, file, {
+      cacheControl: '3600',
+      upsert: false,
+    })
+    if (data) {
+      const { data: urlData } = sb.storage.from(BUCKET).getPublicUrl(path)
+      urls.push(urlData.publicUrl)
+    } else {
+      console.warn('Error subiendo imagen:', error?.message)
+    }
+  }
+  return urls
+}
