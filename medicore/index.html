@@ -834,53 +834,62 @@
     <!-- CONFIGURACION VIEW -->
     <div class="view" id="view-configuracion">
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;">
+        <!-- Perfil del Doctor -->
         <div class="card">
           <div class="card-header"><div class="card-title">Perfil del Doctor</div></div>
           <div class="form-group" style="margin-bottom:14px;">
-            <label>Nombre completo</label>
-            <input type="text" value="Dr. Carlos García López">
+            <label>Nombre</label>
+            <input type="text" id="cfg-nombre" placeholder="Ej: Nathaly">
+          </div>
+          <div class="form-group" style="margin-bottom:14px;">
+            <label>Apellido</label>
+            <input type="text" id="cfg-apellido" placeholder="Ej: Manzo">
           </div>
           <div class="form-group" style="margin-bottom:14px;">
             <label>Especialidad</label>
-            <input type="text" value="Médico General">
+            <input type="text" id="cfg-especialidad" placeholder="Ej: Médico General">
           </div>
           <div class="form-group" style="margin-bottom:14px;">
             <label>Cédula Profesional</label>
-            <input type="text" value="12345678">
+            <input type="text" id="cfg-cedula-prof" placeholder="Ej: SENESCYT-12345">
           </div>
           <div class="form-group" style="margin-bottom:20px;">
             <label>Email</label>
-            <input type="email" value="dr.garcia@consultorio.com">
+            <input type="email" id="cfg-email" placeholder="doctor@email.com">
           </div>
-          <button class="btn-accent" onclick="showToast('success','Perfil actualizado','Cambios guardados correctamente')">Guardar Cambios</button>
+          <button class="btn-accent" onclick="saveProfile()" style="width:100%">💾 Guardar Perfil</button>
         </div>
+
+        <!-- Consultorio -->
         <div class="card">
           <div class="card-header"><div class="card-title">Consultorio</div></div>
           <div class="form-group" style="margin-bottom:14px;">
             <label>Nombre del Consultorio</label>
-            <input type="text" value="Consultorio García">
+            <input type="text" id="cfg-consultorio" placeholder="Ej: Clínica Familiar">
           </div>
           <div class="form-group" style="margin-bottom:14px;">
             <label>Dirección</label>
-            <input type="text" value="Av. Principal 123, Ciudad">
+            <input type="text" id="cfg-direccion" placeholder="Ej: Av. Principal 123, Quito">
           </div>
           <div class="form-group" style="margin-bottom:14px;">
             <label>Teléfono</label>
-            <input type="text" value="+593 99 123 4567">
+            <input type="text" id="cfg-telefono" placeholder="+593 99 000 0000">
           </div>
           <div class="form-group" style="margin-bottom:20px;">
             <label>Horario de Atención</label>
-            <input type="text" value="Lun-Vie: 8:00 - 17:00">
+            <input type="text" id="cfg-horario" placeholder="Lun-Vie: 8:00 - 17:00">
           </div>
-          <button class="btn-accent" onclick="showToast('success','Configuración guardada','')">Guardar</button>
+          <button class="btn-accent" onclick="saveClinic()" style="width:100%">💾 Guardar Consultorio</button>
         </div>
+
+        <!-- App & PWA -->
         <div class="card">
           <div class="card-header"><div class="card-title">App & PWA</div></div>
           <div style="display:flex;flex-direction:column;gap:14px;">
             <div class="info-row"><span class="info-key">Versión</span><span class="info-val">1.0.0</span></div>
             <div class="info-row"><span class="info-key">Modo offline</span><span class="info-val" style="color:var(--accent);">✓ Activo</span></div>
             <div class="info-row"><span class="info-key">Pacientes guardados</span><span class="info-val" id="cfg-count">0</span></div>
-            <div class="info-row"><span class="info-key">Última sincronización</span><span class="info-val">Hoy, 10:35 AM</span></div>
+            <div class="info-row"><span class="info-key">Última sincronización</span><span class="info-val" id="cfg-sync">—</span></div>
           </div>
           <button class="btn-ghost" style="margin-top:20px;width:100%;justify-content:center;" onclick="clearData()">🗑️ Limpiar Datos Demo</button>
         </div>
@@ -1408,7 +1417,7 @@ function navigate(view) {
   if(view==='agenda') renderAgenda();
   if(view==='historial') renderHistorial();
   if(view==='reportes') renderReportes();
-  if(view==='configuracion') document.getElementById('cfg-count').textContent = DB.patients.length;
+  if(view==='configuracion') { document.getElementById('cfg-count').textContent = DB.patients.length; loadConfigForm(); }
   closeSidebar();
 }
 
@@ -1467,7 +1476,7 @@ async function updateSidebar() {
   try {
     if (sbConfigured() && getDoctorId()) {
       const { data } = await sb.from('doctores')
-        .select('nombre, apellido, especialidad, email, telefono, consultorio, direccion')
+        .select('nombre, apellido, especialidad, email, telefono, consultorio, direccion, horario')
         .eq('id', getDoctorId())
         .single();
       if (data) {
@@ -2413,6 +2422,91 @@ window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferr
 function installPWA(){ if(deferredPrompt){ deferredPrompt.prompt(); deferredPrompt.userChoice.then(()=>{ deferredPrompt=null; dismissInstall(); }); } }
 function dismissInstall(){ document.getElementById('install-banner').classList.remove('show'); }
 function showInstallBanner(){ if(!window.matchMedia('(display-mode: standalone)').matches && !localStorage.getItem('installDismissed')){ /* shown by beforeinstallprompt */ } }
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// CONFIGURACIÓN — GUARDAR Y CARGAR
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+async function loadConfigForm() {
+  // Primero rellenar desde el perfil en memoria (carga instantánea)
+  if (_doctorProfile) {
+    document.getElementById('cfg-nombre').value       = _doctorProfile.nombre      || '';
+    document.getElementById('cfg-apellido').value     = _doctorProfile.apellido     || '';
+    document.getElementById('cfg-especialidad').value = _doctorProfile.especialidad || '';
+    document.getElementById('cfg-email').value        = _doctorProfile.email        || '';
+    document.getElementById('cfg-consultorio').value  = _doctorProfile.consultorio  || '';
+    document.getElementById('cfg-direccion').value    = _doctorProfile.direccion    || '';
+    document.getElementById('cfg-telefono').value     = _doctorProfile.telefono     || '';
+    document.getElementById('cfg-horario').value      = _doctorProfile.horario      || '';
+  }
+  // cedula_prof se guarda solo en localStorage
+  document.getElementById('cfg-cedula-prof').value = localStorage.getItem('mc_cedula_prof') || '';
+
+  // Si hay conexión, refrescar desde Supabase
+  if (sbConfigured() && getDoctorId() && navigator.onLine) {
+    const { data } = await sb.from('doctores')
+      .select('nombre,apellido,especialidad,email,telefono,consultorio,direccion,horario')
+      .eq('id', getDoctorId())
+      .single();
+    if (data) {
+      document.getElementById('cfg-nombre').value       = data.nombre       || '';
+      document.getElementById('cfg-apellido').value     = data.apellido     || '';
+      document.getElementById('cfg-especialidad').value = data.especialidad || '';
+      document.getElementById('cfg-email').value        = data.email        || '';
+      document.getElementById('cfg-consultorio').value  = data.consultorio  || '';
+      document.getElementById('cfg-direccion').value    = data.direccion    || '';
+      document.getElementById('cfg-telefono').value     = data.telefono     || '';
+      document.getElementById('cfg-horario').value      = data.horario      || '';
+      // Actualizar caché en memoria también
+      _doctorProfile = { ..._doctorProfile, ...data };
+    }
+  }
+}
+
+async function saveProfile() {
+  const nombre       = document.getElementById('cfg-nombre').value.trim();
+  const apellido     = document.getElementById('cfg-apellido').value.trim();
+  const especialidad = document.getElementById('cfg-especialidad').value.trim();
+  const email        = document.getElementById('cfg-email').value.trim();
+  const cedulaProf   = document.getElementById('cfg-cedula-prof').value.trim();
+
+  if (!nombre) { showToast('error', 'Campo requerido', 'El nombre es obligatorio'); return; }
+
+  // cedula_prof no está en la BD — guardar en localStorage
+  localStorage.setItem('mc_cedula_prof', cedulaProf);
+
+  if (sbConfigured() && getDoctorId()) {
+    if (!navigator.onLine) { showToast('warning', 'Sin conexión', 'Los cambios se guardarán cuando haya internet'); return; }
+    const { error } = await sb.from('doctores')
+      .update({ nombre, apellido, especialidad, email })
+      .eq('id', getDoctorId());
+    if (error) { showToast('error', 'Error al guardar', error.message); return; }
+  }
+
+  // Actualizar caché en memoria y barra lateral
+  _doctorProfile = { ..._doctorProfile, nombre, apellido, especialidad, email };
+  updateSidebar();
+  showToast('success', 'Perfil actualizado', 'Los cambios fueron guardados correctamente');
+}
+
+async function saveClinic() {
+  const consultorio = document.getElementById('cfg-consultorio').value.trim();
+  const direccion   = document.getElementById('cfg-direccion').value.trim();
+  const telefono    = document.getElementById('cfg-telefono').value.trim();
+  const horario     = document.getElementById('cfg-horario').value.trim();
+
+  if (sbConfigured() && getDoctorId()) {
+    if (!navigator.onLine) { showToast('warning', 'Sin conexión', 'Los cambios se guardarán cuando haya internet'); return; }
+    const { error } = await sb.from('doctores')
+      .update({ consultorio, direccion, telefono, horario })
+      .eq('id', getDoctorId());
+    if (error) { showToast('error', 'Error al guardar', error.message); return; }
+  }
+
+  // Actualizar caché en memoria
+  _doctorProfile = { ..._doctorProfile, consultorio, direccion, telefono, horario };
+  showToast('success', 'Consultorio guardado', 'Los cambios fueron guardados correctamente');
+}
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // SERVICE WORKER REGISTRATION
