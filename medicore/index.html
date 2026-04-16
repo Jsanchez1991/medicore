@@ -959,7 +959,8 @@
   <div class="modal modal-xl">
     <div class="modal-header">
       <div class="modal-title">📋 Detalle de Consulta</div>
-      <div style="display:flex;gap:8px;align-items:center;">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <button onclick="editConsult()" class="btn-ghost" style="padding:7px 14px;font-size:0.8rem;">✏️ Editar</button>
         <button onclick="printConsultReport()" class="btn-ghost" style="padding:7px 14px;font-size:0.8rem;">🖨️ Exportar PDF</button>
         <button onclick="printReceta()" class="btn-accent" style="padding:7px 14px;font-size:0.8rem;">💊 Imprimir Receta</button>
         <button class="modal-close" onclick="closeModal('modal-consult-detail')">✕</button>
@@ -1720,10 +1721,14 @@ function openDetail(id) {
         <div class="history-body">
           <div class="history-date">${fmtDate(c.fecha)}</div>
           <div class="history-type">${c.tipo}</div>
-          <div style="font-size:0.875rem;font-weight:600;margin-bottom:4px">${c.diagnostico}</div>
-          <div class="history-notes">${c.notas}</div>
-          <div style="font-size:0.8rem;color:var(--accent2);margin-top:6px">💊 ${c.tratamiento}</div>
+          <div style="font-size:0.9rem;font-weight:700;margin-bottom:4px">${c.diagnostico}</div>
+          ${c.notas?`<div class="history-notes">${c.notas}</div>`:''}
+          ${c.tratamiento?`<div style="font-size:0.8rem;color:var(--accent2);margin-top:6px">💊 ${c.tratamiento.split('\n')[0]}</div>`:''}
           <div class="history-tags">${c.tags.map(t=>`<span class="tag treatment">${t}</span>`).join('')}</div>
+          <div class="history-actions">
+            <button class="h-btn primary" onclick="closeModal('modal-detail');openConsultDetail('${c.id}')">📋 Ver detalle</button>
+            <button class="h-btn" onclick="closeModal('modal-detail');openConsultDetail('${c.id}');setTimeout(printReceta,400)">💊 Receta</button>
+          </div>
         </div>
       </div>`).join('')}`;
   openModal('modal-detail');
@@ -1783,6 +1788,9 @@ async function saveConsult() {
   const pid = document.getElementById('c-paciente').value;
   const diag = document.getElementById('c-diagnostico').value.trim();
   if(!pid||!diag){ showToast('error','Campos requeridos','Paciente y diagnóstico son obligatorios'); return; }
+  // Reset modal title/button
+  document.querySelector('#modal-consult .modal-title').textContent = '📋 Nueva Consulta';
+  document.querySelector('#modal-consult .btn-accent').textContent = '📋 Registrar Consulta';
 
   const signos = {
     peso: document.getElementById('c-peso').value,
@@ -1814,8 +1822,21 @@ async function saveConsult() {
     tags: [diag.split(' ')[0]]
   };
 
-  DB.consultations.push(c);
   const p = DB.patients.find(x=>x.id===pid);
+  if (_editingConsultId) {
+    // Modo edición — reemplazar consulta existente
+    const idx = DB.consultations.findIndex(x => x.id === _editingConsultId);
+    if (idx !== -1) {
+      c.id = _editingConsultId;
+      c.imagenes = DB.consultations[idx].imagenes || [];
+      DB.consultations[idx] = c;
+    }
+    _editingConsultId = null;
+    showToast('success','Consulta actualizada',`${p?.nombre} ${p?.apellido} — ${diag}`);
+  } else {
+    DB.consultations.push(c);
+    showToast('success','Consulta registrada',`${p?.nombre} ${p?.apellido} — ${diag}`);
+  }
   if(p) p.estado = 'activo';
   DB.save();
   closeModal('modal-consult');
@@ -2050,15 +2071,131 @@ function openConsultDetail(consultId) {
       <div class="cd-text-block">${c.notas}</div>
     </div>`:''}
 
-    <!-- Imágenes -->
-    ${c.imagenes&&c.imagenes.length?`<div class="cd-section">
+    <!-- Imágenes existentes + subir nuevas -->
+    <div class="cd-section">
       <div class="cd-section-title">📷 Evidencia Fotográfica</div>
-      <div class="cd-images-grid">
-        ${c.imagenes.map(url=>`<div class="cd-image-item"><img src="${url}" onclick="window.open('${url}','_blank')" title="Ampliar"></div>`).join('')}
+      ${c.imagenes&&c.imagenes.length?`<div class="cd-images-grid" id="cd-images-grid">
+        ${c.imagenes.map((url,i)=>`<div class="cd-image-item" id="cd-img-${i}">
+          <img src="${url}" onclick="window.open('${url}','_blank')" title="Ampliar">
+          <button class="preview-remove" onclick="removeConsultImage('${url}','cd-img-${i}')">✕</button>
+        </div>`).join('')}
+      </div>`:`<div class="cd-images-grid" id="cd-images-grid"></div>`}
+      <!-- Zona de subida -->
+      <div class="upload-area" style="margin-top:12px;" onclick="document.getElementById('cd-upload-input').click()"
+           ondragover="event.preventDefault()" ondrop="handleDetailImageDrop(event)">
+        <input type="file" id="cd-upload-input" multiple accept="image/*" style="display:none" onchange="uploadDetailImages(this.files)">
+        <div class="upload-placeholder">
+          <span>📁</span>
+          <p>Agregar imágenes a esta consulta</p>
+          <small>PNG, JPG, WEBP — máx. 5 MB por imagen</small>
+        </div>
       </div>
-    </div>`:''}
+      <div id="cd-upload-status" style="font-size:0.8rem;color:var(--text2);margin-top:8px;text-align:center;"></div>
+    </div>
   `;
   openModal('modal-consult-detail');
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// EDITAR CONSULTA DESDE DETALLE
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let _editingConsultId = null;
+
+function editConsult() {
+  if (!_currentConsult) return;
+  const { c, p } = _currentConsult;
+  _editingConsultId = c.id;
+
+  // Pre-fill form
+  const sel = document.getElementById('c-paciente');
+  sel.innerHTML = DB.patients.map(x=>`<option value="${x.id}" ${x.id===p.id?'selected':''}>${x.nombre} ${x.apellido}</option>`).join('');
+  document.getElementById('c-fecha').value = c.fecha ? c.fecha.split('T')[0] : '';
+  document.getElementById('c-tipo').value = c.tipo || 'Consulta General';
+  document.getElementById('c-diagnostico').value = c.diagnostico || '';
+  document.getElementById('c-tratamiento').value = c.tratamiento || '';
+  document.getElementById('c-examen').value = c.examen || '';
+  document.getElementById('c-notas').value = c.notas || '';
+
+  // Signos vitales
+  const sv = c.signos || {};
+  ['peso','talla','temp','fr','sato2','fc'].forEach(f=>{
+    const map = {peso:'peso',talla:'talla',temp:'temperatura',fr:'frecResp',sato2:'satO2',fc:'frecCard'};
+    const el = document.getElementById('c-'+f);
+    if(el) el.value = sv[map[f]] || '';
+  });
+  document.getElementById('c-pa').value = sv.presionArterial || '';
+  if(sv.peso && sv.talla) calcIMC();
+
+  // Antecedentes
+  const ant = c.antecedentes || {};
+  document.getElementById('c-ant-personales').value = ant.personales || '';
+  document.getElementById('c-ant-familiares').value = ant.familiares || '';
+  document.getElementById('c-alergias').value = ant.alergias || '';
+  document.getElementById('c-medicamentos-act').value = ant.medicamentos || '';
+  document.getElementById('c-cirugias').value = ant.cirugias || '';
+
+  document.getElementById('image-preview').innerHTML = '';
+  _pendingImages = [];
+
+  // Change modal title and button
+  document.querySelector('#modal-consult .modal-title').textContent = '✏️ Editar Consulta';
+  document.querySelector('#modal-consult .btn-accent').textContent = '💾 Guardar Cambios';
+
+  closeModal('modal-consult-detail');
+  openModal('modal-consult');
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SUBIR IMÁGENES DESDE DETALLE
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function uploadDetailImages(files) {
+  if (!_currentConsult) return;
+  const { c } = _currentConsult;
+  const status = document.getElementById('cd-upload-status');
+  const grid = document.getElementById('cd-images-grid');
+  const validFiles = Array.from(files).filter(f => {
+    if (f.size > 5*1024*1024) { showToast('warn','Muy grande',f.name+' supera 5MB'); return false; }
+    return true;
+  });
+  if (!validFiles.length) return;
+  status.textContent = '⏳ Subiendo imágenes...';
+
+  try {
+    const urls = await sbUploadImages(c.id, validFiles);
+    if (!c.imagenes) c.imagenes = [];
+    c.imagenes.push(...urls);
+    DB.save();
+    // Update grid
+    urls.forEach((url,i) => {
+      const idx = (c.imagenes.length - urls.length + i);
+      const div = document.createElement('div');
+      div.className = 'cd-image-item';
+      div.id = 'cd-img-'+idx;
+      div.innerHTML = `<img src="${url}" onclick="window.open('${url}','_blank')" title="Ampliar"><button class="preview-remove" onclick="removeConsultImage('${url}','cd-img-${idx}')">✕</button>`;
+      grid.appendChild(div);
+    });
+    status.textContent = `✅ ${urls.length} imagen(es) guardada(s)`;
+    setTimeout(()=>status.textContent='', 3000);
+    showToast('success','Imágenes subidas',`${urls.length} archivo(s) agregado(s)`);
+  } catch(e) {
+    status.textContent = '❌ Error al subir. Verifica el bucket de Supabase.';
+    console.warn('uploadDetailImages error:', e);
+  }
+}
+
+function handleDetailImageDrop(e) {
+  e.preventDefault();
+  uploadDetailImages(e.dataTransfer.files);
+}
+
+function removeConsultImage(url, elId) {
+  if (!_currentConsult) return;
+  if (!confirm('¿Eliminar esta imagen?')) return;
+  const { c } = _currentConsult;
+  c.imagenes = (c.imagenes||[]).filter(u => u !== url);
+  DB.save();
+  document.getElementById(elId)?.remove();
+  showToast('success','Imagen eliminada','');
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
