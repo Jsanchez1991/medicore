@@ -2652,62 +2652,107 @@ function printReceta() {
   if (!_currentConsult) return;
   const { c, p } = _currentConsult;
   const dr = _doctorProfile;
-  const initDr = ((dr.nombre||'D').charAt(0)+(dr.apellido||'').charAt(0)).toUpperCase();
+  const cedulaProf = localStorage.getItem('mc_cedula_prof') || '';
+  const edad = p.nacimiento ? getAge(p.nacimiento) + ' años' : '—';
 
   document.getElementById('print-content').innerHTML = `
-  <div class="rx-wrap">
-    <!-- Membrete -->
-    <div class="rx-header">
-      <div class="rx-logo-circle">${initDr}</div>
-      <div class="rx-doctor-info">
-        <h2>Dr. ${dr.nombre||''} ${dr.apellido||''}</h2>
-        <p>${dr.especialidad||'Médico General'}</p>
-        ${dr.telefono?`<p>📞 ${dr.telefono}</p>`:''}
-        ${dr.email?`<p>✉ ${dr.email}</p>`:''}
-        ${dr.consultorio?`<p>🏥 ${dr.consultorio}${dr.direccion?' · '+dr.direccion:''}</p>`:''}
+  <div style="font-family:'Helvetica Neue',Arial,sans-serif;background:#fff;color:#1a1a2e;max-width:700px;margin:0 auto;border:1px solid #d0d9e8;border-radius:4px;overflow:hidden;">
+
+    <!-- ══ MEMBRETE ══ -->
+    <div style="background:linear-gradient(135deg,#0f2447 0%,#1a4580 60%,#2563ab 100%);color:#fff;padding:20px 28px;display:flex;align-items:center;justify-content:space-between;gap:16px;">
+      <div style="display:flex;align-items:center;gap:16px;">
+        <img src="./logodc.jpeg" alt="Logo" style="width:68px;height:68px;border-radius:10px;object-fit:cover;border:2px solid rgba(255,255,255,.35);flex-shrink:0;background:#fff;">
+        <div>
+          <div style="font-size:1.25rem;font-weight:800;letter-spacing:-.01em;">Dr. ${dr.nombre||''} ${dr.apellido||''}</div>
+          <div style="font-size:0.82rem;opacity:.88;margin-top:2px;">${dr.especialidad||'Médico General'}</div>
+          ${cedulaProf ? `<div style="font-size:0.7rem;opacity:.72;margin-top:2px;">Reg. Prof.: ${cedulaProf}</div>` : ''}
+          <div style="font-size:0.7rem;opacity:.7;margin-top:3px;">${[dr.consultorio, dr.direccion].filter(Boolean).join(' · ')}</div>
+          <div style="font-size:0.7rem;opacity:.7;margin-top:1px;">${[dr.telefono, dr.email].filter(Boolean).join(' · ')}</div>
+        </div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        <div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.12em;opacity:.7;">Fecha</div>
+        <div style="font-size:1rem;font-weight:700;margin-top:2px;">${fmtDate(c.fecha)}</div>
+        <div style="margin-top:6px;font-size:0.65rem;opacity:.6;">${c.tipo}</div>
       </div>
     </div>
-    <div class="rx-title-strip">Receta Médica</div>
 
-    <div class="rx-body">
-      <!-- Datos del paciente -->
-      <div class="rx-patient-row">
-        <div class="rx-field"><label>Paciente</label><span>${p.nombre} ${p.apellido}</span></div>
-        <div class="rx-field"><label>Edad</label><span>${getAge(p.nacimiento)} años</span></div>
-        <div class="rx-field"><label>Fecha</label><span>${fmtDate(c.fecha)}</span></div>
-      </div>
-      ${p.cedula?`<div style="font-size:0.78rem;color:#666;margin-bottom:14px;margin-top:-10px">Cédula: <strong>${p.cedula}</strong>${p.alergias?` &nbsp;|&nbsp; <span style="color:#c53030">⚠️ Alergias: ${p.alergias}</span>`:''}</div>`:''}
-
-      <!-- Prescripción -->
-      <div class="rx-rp">Rp/</div>
-      <div class="rx-med-box">${c.tratamiento||'— Sin medicamentos prescritos —'}</div>
-
-      <!-- Diagnóstico -->
-      <div class="rx-diag">
-        <label>Diagnóstico</label>
-        ${c.diagnostico}
-      </div>
-
-      ${c.notas?`<div style="font-size:0.8rem;color:#555;background:#f9f9f9;padding:10px 14px;border-radius:6px;border:1px solid #eee;margin-bottom:16px;white-space:pre-wrap"><span style="font-size:0.65rem;text-transform:uppercase;color:#888;display:block;margin-bottom:4px">Indicaciones adicionales</span>${c.notas}</div>`:''}
+    <!-- ══ BANDA RECETA ══ -->
+    <div style="background:#e8f0fb;border-top:3px solid #2563ab;border-bottom:3px solid #2563ab;text-align:center;padding:7px;font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.18em;color:#1a4580;">
+      ✦ Receta Médica ✦
     </div>
 
-    <!-- Pie -->
-    <div class="rx-footer">
-      <div>
-        <div class="rx-watermark">Documento generado por MediCore</div>
-        <div class="rx-watermark">${new Date().toLocaleDateString('es-EC',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
+    <div style="padding:22px 28px;">
+
+      <!-- Datos del Paciente -->
+      <div style="background:#f4f7fc;border:1px solid #dde8f8;border-radius:10px;padding:14px 18px;margin-bottom:20px;">
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:14px;font-size:0.85rem;margin-bottom:10px;">
+          <div>
+            <div style="font-size:0.62rem;color:#888;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">Paciente</div>
+            <div style="font-weight:800;font-size:1rem;color:#0f2447;">${p.nombre} ${p.apellido}</div>
+          </div>
+          <div>
+            <div style="font-size:0.62rem;color:#888;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">Edad</div>
+            <div style="font-weight:700;">${edad}</div>
+          </div>
+          <div>
+            <div style="font-size:0.62rem;color:#888;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">Cédula</div>
+            <div style="font-weight:700;">${p.cedula||'—'}</div>
+          </div>
+        </div>
+        ${p.alergias ? `
+        <div style="background:#fff5f5;border:1px solid #feb2b2;border-radius:7px;padding:6px 12px;font-size:0.78rem;color:#c53030;">
+          <strong>⚠️ Alergias:</strong> ${p.alergias}
+        </div>` : ''}
       </div>
-      <div class="rx-firma">
-        <div class="rx-sello">Sello<br>médico</div>
+
+      <!-- Diagnóstico CIE-10 -->
+      <div style="margin-bottom:18px;">
+        <div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:.1em;color:#1a4580;font-weight:800;margin-bottom:6px;padding-bottom:5px;border-bottom:2px solid #e2e8f0;">🩺 Diagnóstico</div>
+        ${c.cie10 && c.cie10.length ? `
+        <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;">
+          ${c.cie10.map(e=>`<span style="background:#e8f0fe;color:#1a4580;border:1px solid #c5d8f8;border-radius:20px;padding:2px 10px;font-size:0.7rem;font-weight:700;font-family:monospace;">${e.c} <span style="font-family:sans-serif;font-weight:500;">— ${e.d}</span></span>`).join('')}
+        </div>` : ''}
+        <div style="border-left:4px solid #2563ab;padding:10px 14px;background:#f0f5ff;border-radius:0 8px 8px 0;font-size:0.92rem;font-weight:700;color:#0f2447;">${c.diagnostico}</div>
       </div>
-      <div class="rx-firma">
-        <div class="rx-firma-line">Dr. ${dr.nombre||''} ${dr.apellido||''}</div>
-        <div class="rx-firma-sub">${dr.especialidad||'Médico General'}</div>
+
+      <!-- Prescripción Rp/ -->
+      <div style="margin-bottom:18px;">
+        <div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:.1em;color:#1a4580;font-weight:800;margin-bottom:8px;padding-bottom:5px;border-bottom:2px solid #e2e8f0;">💊 Prescripción</div>
+        <div style="font-size:2rem;font-weight:900;color:#1a4580;font-style:italic;margin-bottom:8px;font-family:Georgia,serif;">Rp/</div>
+        <div style="border:1.5px solid #dde8f8;border-radius:10px;padding:16px 18px;font-size:0.9rem;line-height:2;white-space:pre-wrap;min-height:80px;background:#fafcff;color:#1a1a2e;font-family:'Courier New',monospace;">${c.tratamiento||'— Sin medicamentos prescritos —'}</div>
       </div>
+
+      <!-- Indicaciones -->
+      ${c.notas ? `
+      <div style="margin-bottom:18px;">
+        <div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:.1em;color:#1a4580;font-weight:800;margin-bottom:6px;padding-bottom:5px;border-bottom:2px solid #e2e8f0;">📋 Indicaciones adicionales</div>
+        <div style="font-size:0.85rem;line-height:1.7;white-space:pre-wrap;padding:12px 14px;background:#fffdf0;border:1px solid #f0e6a0;border-radius:8px;">${c.notas}</div>
+      </div>` : ''}
+
+      <!-- Pie: Sello + Firma -->
+      <div style="margin-top:36px;padding-top:18px;border-top:1px dashed #c5d0e0;display:flex;justify-content:space-between;align-items:flex-end;">
+        <div style="font-size:0.68rem;color:#aaa;line-height:1.7;">
+          <div>Documento generado por MediCore</div>
+          <div>${new Date().toLocaleDateString('es-EC',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
+        </div>
+        <div style="display:flex;align-items:flex-end;gap:32px;">
+          <div style="text-align:center;">
+            <div style="width:72px;height:72px;border-radius:50%;border:2px dashed #c5d0e0;display:flex;align-items:center;justify-content:center;font-size:0.6rem;color:#c5d0e0;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Sello<br>médico</div>
+          </div>
+          <div style="text-align:center;min-width:180px;">
+            <div style="height:44px;border-bottom:1.5px solid #0f2447;margin-bottom:6px;"></div>
+            <div style="font-size:0.85rem;font-weight:800;color:#0f2447;">Dr. ${dr.nombre||''} ${dr.apellido||''}</div>
+            <div style="font-size:0.72rem;color:#555;margin-top:1px;">${dr.especialidad||'Médico General'}</div>
+            ${cedulaProf?`<div style="font-size:0.68rem;color:#888;margin-top:1px;">Reg. ${cedulaProf}</div>`:''}
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>`;
   document.getElementById('print-area').style.display = 'block';
-  setTimeout(()=>{ window.print(); document.getElementById('print-area').style.display='none'; }, 100);
+  setTimeout(()=>{ window.print(); document.getElementById('print-area').style.display='none'; }, 200);
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
