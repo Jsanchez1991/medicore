@@ -464,9 +464,10 @@
 
     /* ── PRINT STYLES ── */
     @media print {
-      body * { visibility:hidden !important; }
-      #print-area, #print-area * { visibility:visible !important; }
-      #print-area { position:fixed; left:0; top:0; width:100%; z-index:9999; }
+      body > *:not(#print-area) { display:none !important; }
+      #print-area { display:block !important; position:static !important; width:100% !important; margin:0 !important; padding:0 !important; }
+      #print-area * { visibility:visible !important; }
+      @page { margin: 15mm 15mm 15mm 15mm; size: A4; }
     }
 
     /* ── PRESCRIPTION TEMPLATE ── */
@@ -2467,81 +2468,168 @@ function printConsultReport() {
   const dr = _doctorProfile;
   const sv = c.signos || {};
   const ant = c.antecedentes || {};
-  const vitRow = (label, val, unit) => val ? `<tr><td style="padding:4px 10px;color:#666;font-size:0.82rem;width:40%">${label}</td><td style="padding:4px 10px;font-weight:600;font-size:0.82rem">${val}${unit?' '+unit:''}</td></tr>` : '';
+  const cedulaProf = localStorage.getItem('mc_cedula_prof') || '';
+  const edad = p.nacimiento ? getAge(p.nacimiento) + ' años' : '—';
+  const sexoLabel = p.sexo === 'M' ? 'Masculino' : p.sexo === 'F' ? 'Femenino' : p.sexo || '—';
+
+  const secTitle = (icon, text) =>
+    `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #e2e8f0;">
+       <span style="font-size:0.95rem">${icon}</span>
+       <span style="font-size:0.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:#1a365d">${text}</span>
+     </div>`;
+
+  const vitCell = (val, label, unit='') => val
+    ? `<div style="background:#f8faff;border:1px solid #dde8f8;border-radius:8px;padding:10px 14px;text-align:center;">
+         <div style="font-size:1.15rem;font-weight:800;color:#1a365d">${val}<span style="font-size:0.65rem;color:#666;font-weight:400"> ${unit}</span></div>
+         <div style="font-size:0.62rem;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-top:2px">${label}</div>
+       </div>` : '';
 
   document.getElementById('print-content').innerHTML = `
-  <div style="font-family:'Georgia',serif;max-width:780px;margin:0 auto;background:#fff;color:#1a1a1a;padding:30px;">
-    <!-- Header -->
-    <div style="display:flex;align-items:center;gap:20px;padding-bottom:16px;border-bottom:3px solid #1a365d;margin-bottom:20px;">
-      <div style="width:70px;height:70px;border-radius:50%;background:linear-gradient(135deg,#1a365d,#2b6cb0);display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.5rem;font-weight:700;flex-shrink:0">
-        ${((dr.nombre||'D').charAt(0)+(dr.apellido||'').charAt(0)).toUpperCase()}
-      </div>
-      <div style="flex:1">
-        <div style="font-size:1.3rem;font-weight:700;color:#1a365d">Dr. ${dr.nombre||''} ${dr.apellido||''}</div>
-        <div style="font-size:0.85rem;color:#555;margin-top:2px">${dr.especialidad||'Médico General'}</div>
-        <div style="font-size:0.78rem;color:#777;margin-top:4px">${[dr.telefono,dr.email,dr.consultorio,dr.direccion].filter(Boolean).join(' · ')}</div>
-      </div>
-      <div style="text-align:right;">
-        <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:.08em;color:#888">Informe Médico</div>
-        <div style="font-size:1rem;font-weight:700;color:#1a365d">${fmtDate(c.fecha)}</div>
-        <div style="font-size:0.78rem;color:#666;margin-top:2px">${c.tipo}</div>
-      </div>
-    </div>
+  <div style="font-family:'Helvetica Neue',Arial,sans-serif;background:#fff;color:#1a1a2e;min-height:100vh;">
 
-    <!-- Datos paciente -->
-    <div style="background:#f0f5ff;border-radius:8px;padding:14px 18px;margin-bottom:20px;">
-      <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:.08em;color:#2b6cb0;font-weight:700;margin-bottom:8px">Datos del Paciente</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;font-size:0.85rem;">
-        <div><span style="color:#666;display:block;font-size:0.7rem">Nombre completo</span><strong>${p.nombre} ${p.apellido}</strong></div>
-        <div><span style="color:#666;display:block;font-size:0.7rem">Cédula</span><strong>${p.cedula||'—'}</strong></div>
-        <div><span style="color:#666;display:block;font-size:0.7rem">Edad</span><strong>${getAge(p.nacimiento)} años</strong></div>
-        <div><span style="color:#666;display:block;font-size:0.7rem">Sexo</span><strong>${p.sexo==='M'?'Masculino':'Femenino'}</strong></div>
-        <div><span style="color:#666;display:block;font-size:0.7rem">Teléfono</span><strong>${p.tel||'—'}</strong></div>
-        ${p.alergias?`<div><span style="color:#c53030;display:block;font-size:0.7rem">⚠️ Alergias</span><strong style="color:#c53030">${p.alergias}</strong></div>`:''}
+    <!-- ══ HEADER ══ -->
+    <div style="background:linear-gradient(135deg,#0f2447 0%,#1a4580 60%,#2563ab 100%);color:#fff;padding:24px 32px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:18px;">
+        <img src="./logodc.jpeg" alt="Logo" style="width:72px;height:72px;border-radius:12px;object-fit:cover;border:2px solid rgba(255,255,255,.35);background:#fff;">
+        <div>
+          <div style="font-size:1.4rem;font-weight:800;letter-spacing:-.01em">Dr. ${dr.nombre||''} ${dr.apellido||''}</div>
+          <div style="font-size:0.85rem;opacity:.88;margin-top:2px;font-weight:500">${dr.especialidad||'Médico General'}</div>
+          ${cedulaProf?`<div style="font-size:0.72rem;opacity:.7;margin-top:2px">Reg. Prof.: ${cedulaProf}</div>`:''}
+          <div style="font-size:0.72rem;opacity:.72;margin-top:3px">${[dr.consultorio,dr.direccion].filter(Boolean).join(' · ')}</div>
+          <div style="font-size:0.72rem;opacity:.72;margin-top:1px">${[dr.telefono,dr.email].filter(Boolean).join(' · ')}</div>
+        </div>
+      </div>
+      <div style="text-align:right;background:rgba(255,255,255,.1);border-radius:12px;padding:14px 20px;min-width:160px;">
+        <div style="font-size:0.62rem;text-transform:uppercase;letter-spacing:.12em;opacity:.75;margin-bottom:4px">Informe Médico</div>
+        <div style="font-size:1.4rem;font-weight:800;letter-spacing:-.01em">${fmtDate(c.fecha)}</div>
+        <div style="font-size:0.78rem;opacity:.85;margin-top:4px;background:rgba(255,255,255,.15);border-radius:6px;padding:3px 8px;display:inline-block">${c.tipo}</div>
+        <div style="font-size:0.68rem;opacity:.6;margin-top:6px">N° Consulta: ${c.id.toString().slice(-6).toUpperCase()}</div>
       </div>
     </div>
 
-    <!-- Signos Vitales -->
-    ${Object.values(sv).some(v=>v)?`
-    <div style="margin-bottom:20px;">
-      <div style="font-size:0.72rem;text-transform:uppercase;font-weight:700;color:#2b6cb0;letter-spacing:.08em;margin-bottom:10px;padding-bottom:4px;border-bottom:1px solid #c9dff5">📊 Signos Vitales</div>
-      <table style="width:100%;border-collapse:collapse;">
-        <tr>
-          ${sv.peso?`<td style="padding:8px 12px;background:#f7fbff;border-radius:8px;text-align:center;margin:4px"><div style="font-size:1.2rem;font-weight:700">${sv.peso}<span style="font-size:0.7rem;color:#666"> kg</span></div><div style="font-size:0.65rem;color:#888;text-transform:uppercase">Peso</div></td>`:''}
-          ${sv.talla?`<td style="padding:8px 12px;background:#f7fbff;border-radius:8px;text-align:center"><div style="font-size:1.2rem;font-weight:700">${sv.talla}<span style="font-size:0.7rem;color:#666"> cm</span></div><div style="font-size:0.65rem;color:#888;text-transform:uppercase">Talla</div></td>`:''}
-          ${sv.imc?`<td style="padding:8px 12px;background:#ebf4ff;border-radius:8px;text-align:center;border:1px solid #c9dff5"><div style="font-size:1.2rem;font-weight:700;color:#2b6cb0">${sv.imc.split(' ')[0]}</div><div style="font-size:0.65rem;color:#2b6cb0;text-transform:uppercase">IMC</div></td>`:''}
-          ${sv.temperatura?`<td style="padding:8px 12px;background:#f7fbff;border-radius:8px;text-align:center"><div style="font-size:1.2rem;font-weight:700">${sv.temperatura}<span style="font-size:0.7rem;color:#666"> °C</span></div><div style="font-size:0.65rem;color:#888;text-transform:uppercase">Temperatura</div></td>`:''}
-          ${sv.presionArterial?`<td style="padding:8px 12px;background:#f7fbff;border-radius:8px;text-align:center"><div style="font-size:1.2rem;font-weight:700">${sv.presionArterial}</div><div style="font-size:0.65rem;color:#888;text-transform:uppercase">Presión Art.</div></td>`:''}
-          ${sv.satO2?`<td style="padding:8px 12px;background:#f7fbff;border-radius:8px;text-align:center"><div style="font-size:1.2rem;font-weight:700">${sv.satO2}<span style="font-size:0.7rem;color:#666"> %</span></div><div style="font-size:0.65rem;color:#888;text-transform:uppercase">Sat. O₂</div></td>`:''}
-          ${sv.frecCard?`<td style="padding:8px 12px;background:#f7fbff;border-radius:8px;text-align:center"><div style="font-size:1.2rem;font-weight:700">${sv.frecCard}<span style="font-size:0.7rem;color:#666"> lpm</span></div><div style="font-size:0.65rem;color:#888;text-transform:uppercase">F. Cardíaca</div></td>`:''}
-        </tr>
-      </table>
-    </div>` : ''}
+    <!-- ══ BODY ══ -->
+    <div style="padding:28px 32px;">
 
-    <!-- Diagnóstico -->
-    <div style="margin-bottom:18px;">
-      <div style="font-size:0.72rem;text-transform:uppercase;font-weight:700;color:#2b6cb0;letter-spacing:.08em;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #c9dff5">🩺 Diagnóstico</div>
-      ${c.cie10 && c.cie10.length ? `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">${c.cie10.map(e=>`<span style="background:#e8f0fe;color:#2b6cb0;border:1px solid #c9dff5;border-radius:16px;padding:2px 10px;font-size:0.75rem;font-weight:700">${e.c} — ${e.d}</span>`).join('')}</div>` : ''}
-      <div style="font-size:1rem;font-weight:700;border-left:4px solid #2b6cb0;padding:10px 14px;background:#f7fbff;border-radius:0 8px 8px 0">${c.diagnostico}</div>
-    </div>
-
-    ${c.examen?`<div style="margin-bottom:18px;"><div style="font-size:0.72rem;text-transform:uppercase;font-weight:700;color:#2b6cb0;letter-spacing:.08em;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #c9dff5">Examen Físico</div><div style="font-size:0.875rem;line-height:1.7;white-space:pre-wrap;padding:12px;background:#fafafa;border:1px solid #eee;border-radius:6px">${c.examen}</div></div>`:''}
-
-    ${c.tratamiento?`<div style="margin-bottom:18px;"><div style="font-size:0.72rem;text-transform:uppercase;font-weight:700;color:#2b6cb0;letter-spacing:.08em;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #c9dff5">💊 Tratamiento</div><div style="font-size:0.875rem;line-height:1.8;white-space:pre-wrap;padding:12px;background:#f7fbff;border:1px solid #c9dff5;border-radius:6px">${c.tratamiento}</div></div>`:''}
-
-    ${c.notas?`<div style="margin-bottom:18px;"><div style="font-size:0.72rem;text-transform:uppercase;font-weight:700;color:#2b6cb0;letter-spacing:.08em;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #c9dff5">📝 Notas Clínicas</div><div style="font-size:0.875rem;line-height:1.7;white-space:pre-wrap;padding:12px;background:#fafafa;border:1px solid #eee;border-radius:6px">${c.notas}</div></div>`:''}
-
-    <!-- Firma -->
-    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:30px;padding-top:20px;border-top:1px dashed #ccc;">
-      <div style="font-size:0.72rem;color:#aaa">Generado por MediCore · ${new Date().toLocaleDateString('es-EC')}</div>
-      <div style="text-align:center;">
-        <div style="width:180px;border-top:1.5px solid #1a1a1a;padding-top:6px;margin:0 auto;font-size:0.85rem;font-weight:700">Dr. ${dr.nombre||''} ${dr.apellido||''}</div>
-        <div style="font-size:0.72rem;color:#666">${dr.especialidad||'Médico General'}</div>
+      <!-- Datos del Paciente -->
+      <div style="margin-bottom:24px;">
+        ${secTitle('👤','Datos del Paciente')}
+        <div style="background:#f8faff;border:1px solid #dde8f8;border-radius:10px;padding:16px 20px;">
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:16px;font-size:0.85rem;">
+            <div>
+              <div style="font-size:0.65rem;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Nombre completo</div>
+              <div style="font-weight:700;font-size:1rem;color:#0f2447">${p.nombre} ${p.apellido}</div>
+            </div>
+            <div>
+              <div style="font-size:0.65rem;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Cédula / ID</div>
+              <div style="font-weight:700">${p.cedula||'—'}</div>
+            </div>
+            <div>
+              <div style="font-size:0.65rem;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Edad</div>
+              <div style="font-weight:700">${edad}</div>
+            </div>
+            <div>
+              <div style="font-size:0.65rem;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Sexo</div>
+              <div style="font-weight:600">${sexoLabel}</div>
+            </div>
+            <div>
+              <div style="font-size:0.65rem;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Teléfono</div>
+              <div style="font-weight:600">${p.tel||'—'}</div>
+            </div>
+            ${p.email?`<div><div style="font-size:0.65rem;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Correo</div><div style="font-weight:600">${p.email}</div></div>`:'<div></div>'}
+          </div>
+          ${p.alergias?`<div style="margin-top:12px;padding:8px 12px;background:#fff5f5;border:1px solid #feb2b2;border-radius:8px;font-size:0.82rem;color:#c53030"><strong>⚠️ Alergias:</strong> ${p.alergias}</div>`:''}
+        </div>
       </div>
+
+      <!-- Signos Vitales -->
+      ${Object.values(sv).some(v=>v)?`
+      <div style="margin-bottom:24px;">
+        ${secTitle('📊','Signos Vitales')}
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:10px;">
+          ${vitCell(sv.peso,'Peso','kg')}
+          ${vitCell(sv.talla,'Talla','cm')}
+          ${vitCell(sv.imc?sv.imc.split(' ')[0]:'','IMC','')}
+          ${vitCell(sv.temperatura,'Temp.','°C')}
+          ${vitCell(sv.presionArterial,'Presión Art.','')}
+          ${vitCell(sv.satO2,'Sat. O₂','%')}
+          ${vitCell(sv.frecCard,'F. Cardíaca','lpm')}
+          ${vitCell(sv.frecResp,'F. Respirat.','rpm')}
+        </div>
+      </div>` : ''}
+
+      <!-- Diagnóstico CIE-10 -->
+      <div style="margin-bottom:24px;">
+        ${secTitle('🩺','Diagnóstico')}
+        ${c.cie10 && c.cie10.length ? `
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+          ${c.cie10.map(e=>`<span style="background:#e8f0fe;color:#1a4580;border:1px solid #c5d8f8;border-radius:20px;padding:3px 12px;font-size:0.73rem;font-weight:700;font-family:monospace">${e.c} <span style="font-family:sans-serif;font-weight:500">— ${e.d}</span></span>`).join('')}
+        </div>` : ''}
+        <div style="border-left:4px solid #1a4580;padding:12px 16px;background:#f0f5ff;border-radius:0 10px 10px 0;font-size:1rem;font-weight:700;color:#0f2447">${c.diagnostico}</div>
+      </div>
+
+      <!-- Procedimiento Estético -->
+      ${c.procedimientoEstetico && c.procedimientoEstetico.nombre ? `
+      <div style="margin-bottom:24px;">
+        ${secTitle('💉','Procedimiento Estético')}
+        <div style="background:#f8faff;border:1px solid #dde8f8;border-radius:10px;padding:14px 18px;font-size:0.88rem;">
+          <div style="font-weight:700;color:#0f2447;margin-bottom:4px">${c.procedimientoEstetico.categoria} › ${c.procedimientoEstetico.nombre}</div>
+          ${c.procedimientoEstetico.tecnica?`<div style="color:#555">Técnica: <strong>${c.procedimientoEstetico.tecnica}</strong></div>`:''}
+          ${c.procedimientoEstetico.zona?`<div style="color:#555">Zona tratada: <strong>${c.procedimientoEstetico.zona}</strong></div>`:''}
+        </div>
+      </div>` : ''}
+
+      <!-- Examen Físico -->
+      ${c.examen?`
+      <div style="margin-bottom:24px;">
+        ${secTitle('🔍','Examen Físico')}
+        <div style="font-size:0.875rem;line-height:1.75;white-space:pre-wrap;padding:14px 16px;background:#fafbff;border:1px solid #e8eef8;border-radius:10px;color:#2d3748">${c.examen}</div>
+      </div>`:''}
+
+      <!-- Tratamiento -->
+      ${c.tratamiento?`
+      <div style="margin-bottom:24px;">
+        ${secTitle('💊','Tratamiento / Prescripción')}
+        <div style="font-size:0.875rem;line-height:1.8;white-space:pre-wrap;padding:14px 16px;background:#f0f8f0;border:1px solid #c6e6c8;border-radius:10px;color:#1a3a1a">${c.tratamiento}</div>
+      </div>`:''}
+
+      <!-- Antecedentes -->
+      ${(ant.personales||ant.familiares||ant.alergias||ant.medicamentos)?`
+      <div style="margin-bottom:24px;">
+        ${secTitle('📋','Antecedentes')}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:0.82rem;">
+          ${ant.personales?`<div style="background:#fafbff;border:1px solid #e8eef8;border-radius:8px;padding:10px 14px"><div style="font-size:0.65rem;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Personales</div><div>${ant.personales}</div></div>`:''}
+          ${ant.familiares?`<div style="background:#fafbff;border:1px solid #e8eef8;border-radius:8px;padding:10px 14px"><div style="font-size:0.65rem;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Familiares</div><div>${ant.familiares}</div></div>`:''}
+          ${ant.medicamentos?`<div style="background:#fafbff;border:1px solid #e8eef8;border-radius:8px;padding:10px 14px"><div style="font-size:0.65rem;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Medicamentos actuales</div><div>${ant.medicamentos}</div></div>`:''}
+          ${ant.cirugias?`<div style="background:#fafbff;border:1px solid #e8eef8;border-radius:8px;padding:10px 14px"><div style="font-size:0.65rem;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Cirugías previas</div><div>${ant.cirugias}</div></div>`:''}
+        </div>
+      </div>`:''}
+
+      <!-- Notas Clínicas -->
+      ${c.notas?`
+      <div style="margin-bottom:24px;">
+        ${secTitle('📝','Notas Clínicas')}
+        <div style="font-size:0.875rem;line-height:1.75;white-space:pre-wrap;padding:14px 16px;background:#fffdf0;border:1px solid #f0e6a0;border-radius:10px;color:#2d3748">${c.notas}</div>
+      </div>`:''}
+
+      <!-- Firma -->
+      <div style="margin-top:40px;padding-top:20px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:flex-end;">
+        <div style="font-size:0.7rem;color:#aaa;line-height:1.6">
+          <div>Generado por MediCore</div>
+          <div>${new Date().toLocaleDateString('es-EC',{day:'2-digit',month:'long',year:'numeric'})}</div>
+          <div style="margin-top:4px;color:#ccc">medicore-alpha.vercel.app</div>
+        </div>
+        <div style="text-align:center;min-width:220px;">
+          <div style="height:50px;border-bottom:1.5px solid #0f2447;margin-bottom:8px;"></div>
+          <div style="font-size:0.9rem;font-weight:800;color:#0f2447">Dr. ${dr.nombre||''} ${dr.apellido||''}</div>
+          <div style="font-size:0.75rem;color:#555;margin-top:2px">${dr.especialidad||'Médico General'}</div>
+          ${cedulaProf?`<div style="font-size:0.7rem;color:#888;margin-top:1px">Reg. ${cedulaProf}</div>`:''}
+        </div>
+      </div>
+
     </div>
   </div>`;
   document.getElementById('print-area').style.display = 'block';
-  setTimeout(()=>{ window.print(); document.getElementById('print-area').style.display='none'; }, 100);
+  setTimeout(()=>{ window.print(); document.getElementById('print-area').style.display='none'; }, 200);
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
