@@ -20,16 +20,16 @@
       --bg3: #e5dfd4;
       --surface: #ffffff;
       --surface2: #fcfbf9;
-      --border: rgba(160, 140, 120, 0.15);
-      --border2: rgba(140, 110, 80, 0.35);
-      --accent: #a67c52;
-      --accent2: #c39b76;
-      --accent3: #8b633d;
-      --danger: #d9534f;
-      --warn: #f0ad4e;
-      --text: #2d241e;
-      --text2: #5a524a;
-      --text3: #8b837b;
+      --border: rgba(160, 140, 120, 0.2);
+      --border2: rgba(120, 70, 40, 0.5);
+      --accent: #8b633d;
+      --accent2: #a67c52;
+      --accent3: #6b4a2e;
+      --danger: #c9302c;
+      --warn: #ec971f;
+      --text: #1a1512;
+      --text2: #3a322a;
+      --text3: #6b635b;
       --card-shadow: 0 8px 32px rgba(110, 100, 90, 0.12);
       --radius: 16px;
       --radius-sm: 10px;
@@ -2261,14 +2261,28 @@ function apptCard(a, showDate) {
 
 function confirmAppt(id) {
   const a = DB.appointments.find(x=>x.id===id);
-  if(a){ a.estado='confirmed'; DB.save(); renderAgenda(); showToast('success','Cita confirmada',''); }
+  if(a){
+    a.estado='confirmed';
+    DB.save();
+    renderAgenda();
+    showToast('success','Cita confirmada','');
+    // Sync con Supabase
+    if (typeof sbUpdateApptStatus === 'function') {
+      sbUpdateApptStatus(id, 'confirmed').catch(e => console.warn('Sync confirm error:', e));
+    }
+  }
 }
 
 function cancelAppt(id) {
   if(!confirm('¿Cancelar esta cita?')) return;
   DB.appointments = DB.appointments.filter(x=>x.id!==id);
-  DB.save(); renderAgenda();
+  DB.save();
+  renderAgenda();
   showToast('warn','Cita cancelada','');
+  // Sync con Supabase
+  if (typeof sbDeleteAppt === 'function') {
+    sbDeleteAppt(id).catch(e => console.warn('Sync delete error:', e));
+  }
 }
 
 function openNewApptOnDate(dateStr) {

@@ -205,6 +205,11 @@ async function sbUpdateApptStatus(id, status) {
   await sb.from('citas').update({ estado: status }).eq('id', id)
 }
 
+async function sbDeleteAppt(id) {
+  if (!navigator.onLine || !isUUID(id)) return
+  await sb.from('citas').delete().eq('id', id)
+}
+
 // ════════════════════════════════════════════════════════════════
 // MAPEADORES  (Supabase → formato interno de la app)
 // ════════════════════════════════════════════════════════════════
