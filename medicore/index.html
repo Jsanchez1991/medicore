@@ -951,6 +951,21 @@
             <label>Email</label>
             <input type="email" id="cfg-email" placeholder="doctor@email.com">
           </div>
+          <!-- Firma Digital -->
+          <div class="form-group" style="margin-bottom:20px;">
+            <label>Firma Digital (imagen PNG/JPG)</label>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+              <div id="firma-preview" style="width:180px;height:60px;border:1.5px dashed var(--border2);border-radius:8px;display:flex;align-items:center;justify-content:center;background:var(--surface);overflow:hidden;">
+                <span style="font-size:0.7rem;color:var(--text3);">Sin firma cargada</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                <input type="file" id="firma-file" accept="image/*" style="display:none" onchange="loadFirmaPreview(this)">
+                <button type="button" class="btn-ghost" onclick="document.getElementById('firma-file').click()" style="font-size:0.78rem;">📎 Subir firma</button>
+                <button type="button" class="btn-ghost" onclick="clearFirma()" style="font-size:0.78rem;color:var(--text3);">✕ Eliminar</button>
+              </div>
+            </div>
+            <small style="color:var(--text3);font-size:0.72rem;margin-top:6px;display:block;">Firma sobre fondo blanco o transparente. Se usa en recetas y facturas.</small>
+          </div>
           <button class="btn-accent" onclick="saveProfile()" style="width:100%">💾 Guardar Perfil</button>
         </div>
 
@@ -3063,17 +3078,7 @@ function printReceta() {
           <div>Documento generado por MediCore</div>
           <div>${new Date().toLocaleDateString('es-EC',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
         </div>
-        <div style="display:flex;align-items:flex-end;gap:24px;">
-          <div style="text-align:center;">
-            <div style="width:60px;height:60px;border-radius:50%;border:2px dashed #c5d0e0;display:flex;align-items:center;justify-content:center;font-size:0.55rem;color:#c5d0e0;text-transform:uppercase;letter-spacing:.06em;line-height:1.2;">Sello<br>médico</div>
-          </div>
-          <div style="text-align:center;min-width:170px;">
-            <div style="height:32px;border-bottom:1.5px solid #0f2447;margin-bottom:4px;"></div>
-            <div style="font-size:0.8rem;font-weight:800;color:#0f2447;">Dr. ${dr.nombre||''} ${dr.apellido||''}</div>
-            <div style="font-size:0.68rem;color:#555;margin-top:1px;">${dr.especialidad||'Médico General'}</div>
-            ${cedulaProf?`<div style="font-size:0.64rem;color:#888;margin-top:1px;">Reg. ${cedulaProf}</div>`:''}
-          </div>
-        </div>
+        ${buildFirmaBlock(dr, cedulaProf)}
       </div>
 
     </div>
@@ -3492,11 +3497,7 @@ function printFactura(id) {
           <div>Documento generado por MediCore</div>
           <div>${new Date().toLocaleDateString('es-EC',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
         </div>
-        <div style="text-align:center;min-width:180px;">
-          <div style="height:32px;border-bottom:1.5px solid #0f2447;margin-bottom:4px;"></div>
-          <div style="font-size:0.78rem;font-weight:800;color:#0f2447;">Dr. ${dr.nombre||''} ${dr.apellido||''}</div>
-          <div style="font-size:0.68rem;color:#555;">Firma autorizada</div>
-        </div>
+        ${buildFirmaBlock(dr, '')}
       </div>
 
     </div>
@@ -3589,6 +3590,8 @@ async function loadConfigForm() {
   }
   // cedula_prof se guarda solo en localStorage
   document.getElementById('cfg-cedula-prof').value = localStorage.getItem('mc_cedula_prof') || '';
+  // Cargar preview de firma digital
+  renderFirmaPreview(getFirmaDataUrl());
 
   // Si hay conexión, refrescar desde Supabase
   if (sbConfigured() && getDoctorId() && navigator.onLine) {
@@ -3609,6 +3612,58 @@ async function loadConfigForm() {
       _doctorProfile = { ..._doctorProfile, ...data };
     }
   }
+}
+
+// ── Firma digital ──
+function loadFirmaPreview(input) {
+  const file = input?.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const dataUrl = e.target.result;
+    localStorage.setItem('mc_firma', dataUrl);
+    renderFirmaPreview(dataUrl);
+    showToast('success', 'Firma cargada', 'Se usará en recetas y facturas');
+  };
+  reader.readAsDataURL(file);
+}
+
+function renderFirmaPreview(dataUrl) {
+  const el = document.getElementById('firma-preview');
+  if (!el) return;
+  if (dataUrl) {
+    el.innerHTML = `<img src="${dataUrl}" style="max-width:100%;max-height:100%;object-fit:contain;">`;
+  } else {
+    el.innerHTML = `<span style="font-size:0.7rem;color:var(--text3);">Sin firma cargada</span>`;
+  }
+}
+
+function clearFirma() {
+  localStorage.removeItem('mc_firma');
+  renderFirmaPreview(null);
+  showToast('success', 'Firma eliminada', '');
+}
+
+function getFirmaDataUrl() {
+  return localStorage.getItem('mc_firma') || null;
+}
+
+// Genera el bloque HTML de firma para PDFs
+function buildFirmaBlock(dr, cedulaProf) {
+  const firma = getFirmaDataUrl();
+  const firmaHtml = firma
+    ? `<img src="${firma}" style="max-width:180px;max-height:50px;object-fit:contain;display:block;margin-bottom:4px;">`
+    : `<div style="height:32px;border-bottom:1.5px solid #0f2447;margin-bottom:4px;"></div>`;
+
+  return `
+    <div style="display:flex;align-items:flex-end;gap:24px;">
+      <div style="text-align:center;min-width:170px;">
+        ${firmaHtml}
+        <div style="font-size:0.8rem;font-weight:800;color:#0f2447;">Dr. ${dr.nombre||''} ${dr.apellido||''}</div>
+        <div style="font-size:0.68rem;color:#555;margin-top:1px;">${dr.especialidad||'Médico General'}</div>
+        ${cedulaProf ? `<div style="font-size:0.64rem;color:#888;margin-top:1px;">Reg. ${cedulaProf}</div>` : ''}
+      </div>
+    </div>`;
 }
 
 async function saveProfile() {
