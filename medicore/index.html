@@ -666,6 +666,9 @@
       <div class="nav-item" onclick="navigate('historial')">
         <span class="icon">📋</span> Historial Médico
       </div>
+      <div class="nav-item" onclick="navigate('facturacion')">
+        <span class="icon">💰</span> Facturación
+      </div>
       <div class="nav-item" onclick="navigate('reportes')">
         <span class="icon">📈</span> Reportes
       </div>
@@ -887,6 +890,38 @@
           <button class="btn-ghost" onclick="exportData('json')">🗂️ Exportar JSON</button>
           <button class="btn-ghost" onclick="printReport()">🖨️ Imprimir Reporte</button>
         </div>
+      </div>
+    </div>
+
+    <!-- FACTURACION VIEW -->
+    <div class="view" id="view-facturacion">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px;">
+        <div class="stat-card">
+          <div class="stat-label">Facturado este mes</div>
+          <div class="stat-value" id="fact-month-total">$0</div>
+          <div class="stat-meta" id="fact-month-count">0 facturas</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Facturado hoy</div>
+          <div class="stat-value" id="fact-today-total">$0</div>
+          <div class="stat-meta" id="fact-today-count">0 facturas</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Ticket promedio</div>
+          <div class="stat-value" id="fact-avg">$0</div>
+          <div class="stat-meta">últimos 30 días</div>
+        </div>
+        <div class="stat-card" style="display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:8px;">
+          <button class="btn-accent" onclick="openFacturaModal()" style="width:100%;">💰 Nueva Factura</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Historial de Facturas</div>
+          <input type="text" id="fact-search" placeholder="🔍 Buscar paciente o # factura..." onkeyup="renderFacturas()" style="max-width:300px;">
+        </div>
+        <div id="facturas-list"></div>
       </div>
     </div>
 
@@ -1205,6 +1240,70 @@
   </div>
 </div>
 
+<!-- ── MODAL FACTURA ── -->
+<div class="modal-overlay" id="modal-factura">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-factura-title">Nueva Factura</div>
+      <button class="modal-close" onclick="closeModal('modal-factura')">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Paciente *</label>
+        <select id="f-paciente"></select>
+      </div>
+      <div class="form-group">
+        <label>Fecha</label>
+        <input type="date" id="f-fecha">
+      </div>
+      <div class="form-group">
+        <label>Método de pago</label>
+        <select id="f-metodo">
+          <option value="Efectivo">Efectivo</option>
+          <option value="Transferencia">Transferencia</option>
+          <option value="Tarjeta">Tarjeta</option>
+          <option value="Cheque">Cheque</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label>Servicios / Ítems</label>
+        <div id="f-items"></div>
+        <button type="button" class="btn-ghost" onclick="addFacturaItem()" style="margin-top:8px;font-size:0.82rem;">+ Agregar ítem</button>
+      </div>
+      <div class="form-group">
+        <label>Descuento ($)</label>
+        <input type="number" id="f-descuento" value="0" min="0" step="0.01" onchange="calcFacturaTotal()">
+      </div>
+      <div class="form-group">
+        <label>IVA (%)</label>
+        <input type="number" id="f-iva" value="0" min="0" max="100" step="0.01" onchange="calcFacturaTotal()">
+      </div>
+      <div class="form-group full">
+        <label>Notas (opcional)</label>
+        <input type="text" id="f-notas" placeholder="Observaciones">
+      </div>
+      <div class="form-group full" style="background:var(--surface);padding:14px 18px;border-radius:10px;">
+        <div style="display:flex;justify-content:space-between;font-size:0.82rem;color:var(--text2);margin-bottom:6px;">
+          <span>Subtotal:</span> <span id="f-subtotal">$0.00</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:0.82rem;color:var(--text2);margin-bottom:6px;">
+          <span>Descuento:</span> <span id="f-desc-show">-$0.00</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:0.82rem;color:var(--text2);margin-bottom:10px;">
+          <span>IVA:</span> <span id="f-iva-show">$0.00</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:1.1rem;font-weight:700;color:var(--accent);padding-top:10px;border-top:1px dashed var(--border2);">
+          <span>TOTAL:</span> <span id="f-total">$0.00</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" onclick="closeModal('modal-factura')">Cancelar</button>
+      <button class="btn-accent" onclick="saveFactura()">💾 Guardar Factura</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST CONTAINER -->
 <div class="toast-container" id="toast-container"></div>
 
@@ -1464,16 +1563,19 @@ const DB = {
   patients: [],
   consultations: [],
   appointments: [],
+  facturas: [],
   save() {
     // Siempre guardar en localStorage (caché offline)
     localStorage.setItem('mc_patients',      JSON.stringify(this.patients));
     localStorage.setItem('mc_consultations', JSON.stringify(this.consultations));
     localStorage.setItem('mc_appointments',  JSON.stringify(this.appointments));
+    localStorage.setItem('mc_facturas',      JSON.stringify(this.facturas || []));
   },
   load() {
     this.patients      = JSON.parse(localStorage.getItem('mc_patients')      || '[]');
     this.consultations = JSON.parse(localStorage.getItem('mc_consultations') || '[]');
     this.appointments  = JSON.parse(localStorage.getItem('mc_appointments')  || '[]');
+    this.facturas      = JSON.parse(localStorage.getItem('mc_facturas')      || '[]');
     // Solo cargar datos demo si NO hay Supabase configurado
     if (this.patients.length === 0 && !sbConfigured()) this.seedData();
   },
@@ -1656,7 +1758,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // NAVIGATION
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-const viewTitles = { dashboard:'Dashboard', pacientes:'Gestión de Pacientes', agenda:'Agenda & Citas', historial:'Historial Médico', reportes:'Reportes', configuracion:'Configuración' };
+const viewTitles = { dashboard:'Dashboard', pacientes:'Gestión de Pacientes', agenda:'Agenda & Citas', historial:'Historial Médico', facturacion:'Facturación', reportes:'Reportes', configuracion:'Configuración' };
 let currentView = 'dashboard';
 
 function navigate(view) {
@@ -1665,13 +1767,14 @@ function navigate(view) {
   document.getElementById('view-'+view).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n => { if(n.textContent.trim().toLowerCase().includes(viewTitles[view].split(' ')[0].toLowerCase())) n.classList.add('active'); });
   // Fix active nav
-  const navMap = { dashboard:0, pacientes:1, agenda:2, historial:3, reportes:4, configuracion:5 };
+  const navMap = { dashboard:0, pacientes:1, agenda:2, historial:3, facturacion:4, reportes:5, configuracion:6 };
   document.querySelectorAll('.nav-item')[navMap[view]]?.classList.add('active');
   document.getElementById('page-title').textContent = viewTitles[view];
   currentView = view;
   if(view==='pacientes') renderPatients();
   if(view==='agenda') renderAgenda();
   if(view==='historial') renderHistorial();
+  if(view==='facturacion') renderFacturacion();
   if(view==='reportes') renderReportes();
   if(view==='configuracion') { document.getElementById('cfg-count').textContent = DB.patients.length; loadConfigForm(); }
   closeSidebar();
@@ -1714,11 +1817,13 @@ async function initApp() {
             return rc;
           });
           DB.appointments  = remote.appointments;
+          DB.facturas      = remote.facturas || [];
           DB.save();
           renderDashboard();
-          if(currentView==='pacientes') renderPatients();
-          if(currentView==='agenda')    renderAgenda();
-          if(currentView==='historial') renderHistorial();
+          if(currentView==='pacientes')   renderPatients();
+          if(currentView==='agenda')      renderAgenda();
+          if(currentView==='historial')   renderHistorial();
+          if(currentView==='facturacion') renderFacturacion();
           showToast('success','Datos sincronizados','');
         }
         // Actualizar sidebar con datos del doctor
@@ -2970,6 +3075,302 @@ function printReceta() {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// FACTURACIÓN
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+let _facturaItems = [];
+
+function renderFacturacion() {
+  const facts = DB.facturas || [];
+  const now = new Date();
+  const thisMonth = now.getMonth();
+  const thisYear = now.getFullYear();
+  const todayStr = now.toISOString().split('T')[0];
+
+  const monthFacts = facts.filter(f => {
+    const d = new Date(f.fecha);
+    return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+  });
+  const todayFacts = facts.filter(f => f.fecha === todayStr);
+  const last30 = facts.filter(f => new Date(f.fecha) >= new Date(now.getTime() - 30*86400000));
+
+  const monthTotal = monthFacts.reduce((s, f) => s + (f.total || 0), 0);
+  const todayTotal = todayFacts.reduce((s, f) => s + (f.total || 0), 0);
+  const avg = last30.length ? last30.reduce((s, f) => s + (f.total || 0), 0) / last30.length : 0;
+
+  document.getElementById('fact-month-total').textContent = '$' + monthTotal.toFixed(2);
+  document.getElementById('fact-month-count').textContent = monthFacts.length + ' facturas';
+  document.getElementById('fact-today-total').textContent = '$' + todayTotal.toFixed(2);
+  document.getElementById('fact-today-count').textContent = todayFacts.length + ' facturas';
+  document.getElementById('fact-avg').textContent = '$' + avg.toFixed(2);
+
+  renderFacturas();
+}
+
+function renderFacturas() {
+  const q = (document.getElementById('fact-search')?.value || '').toLowerCase();
+  const list = (DB.facturas || [])
+    .filter(f => {
+      if (!q) return true;
+      const p = DB.patients.find(x => x.id === f.pacienteId);
+      const nombre = p ? (p.nombre + ' ' + p.apellido).toLowerCase() : '';
+      return nombre.includes(q) || (f.numero || '').toLowerCase().includes(q);
+    })
+    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+  const el = document.getElementById('facturas-list');
+  if (!list.length) {
+    el.innerHTML = `<div style="padding:40px 20px;text-align:center;color:var(--text3)">Sin facturas. Haz clic en "Nueva Factura" para comenzar.</div>`;
+    return;
+  }
+
+  el.innerHTML = `<table class="data-table">
+    <thead><tr><th>#</th><th>Fecha</th><th>Paciente</th><th>Método</th><th style="text-align:right;">Total</th><th></th></tr></thead>
+    <tbody>${list.map(f => {
+      const p = DB.patients.find(x => x.id === f.pacienteId);
+      const nombre = p ? `${p.nombre} ${p.apellido}` : '—';
+      return `<tr>
+        <td style="font-family:monospace;font-weight:600;">${f.numero || '—'}</td>
+        <td>${fmtDate(f.fecha)}</td>
+        <td>${nombre}</td>
+        <td><span style="font-size:0.75rem;padding:2px 8px;border-radius:4px;background:var(--surface);">${f.metodo || 'Efectivo'}</span></td>
+        <td style="text-align:right;font-weight:700;color:var(--accent);">$${(f.total || 0).toFixed(2)}</td>
+        <td style="text-align:right;">
+          <button class="h-btn" onclick="printFactura('${f.id}')">🖨️ Imprimir</button>
+          <button class="h-btn" onclick="deleteFactura('${f.id}')">🗑️</button>
+        </td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+
+function openFacturaModal() {
+  _facturaItems = [{ desc: '', cant: 1, precio: 0 }];
+  document.getElementById('f-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('f-descuento').value = 0;
+  document.getElementById('f-iva').value = 0;
+  document.getElementById('f-notas').value = '';
+  document.getElementById('f-metodo').value = 'Efectivo';
+
+  // Poblar select de pacientes
+  const sel = document.getElementById('f-paciente');
+  sel.innerHTML = '<option value="">— Seleccionar —</option>' +
+    DB.patients.map(p => `<option value="${p.id}">${p.nombre} ${p.apellido}${p.cedula ? ' · ' + p.cedula : ''}</option>`).join('');
+
+  renderFacturaItems();
+  calcFacturaTotal();
+  openModal('modal-factura');
+}
+
+function renderFacturaItems() {
+  document.getElementById('f-items').innerHTML = _facturaItems.map((it, i) => `
+    <div style="display:grid;grid-template-columns:1fr 70px 100px 32px;gap:8px;margin-bottom:6px;align-items:center;">
+      <input type="text" placeholder="Descripción (ej: Consulta general)" value="${(it.desc||'').replace(/"/g,'&quot;')}" onchange="_facturaItems[${i}].desc=this.value">
+      <input type="number" placeholder="Cant." value="${it.cant}" min="1" step="1" onchange="_facturaItems[${i}].cant=parseFloat(this.value)||1;calcFacturaTotal()">
+      <input type="number" placeholder="Precio" value="${it.precio}" min="0" step="0.01" onchange="_facturaItems[${i}].precio=parseFloat(this.value)||0;calcFacturaTotal()">
+      <button type="button" class="btn-ghost" style="padding:4px 8px;" onclick="removeFacturaItem(${i})" ${_facturaItems.length===1?'disabled':''}>✕</button>
+    </div>
+  `).join('');
+}
+
+function addFacturaItem() {
+  _facturaItems.push({ desc: '', cant: 1, precio: 0 });
+  renderFacturaItems();
+  calcFacturaTotal();
+}
+
+function removeFacturaItem(i) {
+  if (_facturaItems.length === 1) return;
+  _facturaItems.splice(i, 1);
+  renderFacturaItems();
+  calcFacturaTotal();
+}
+
+function calcFacturaTotal() {
+  const subtotal = _facturaItems.reduce((s, it) => s + (it.cant * it.precio), 0);
+  const descuento = parseFloat(document.getElementById('f-descuento').value) || 0;
+  const ivaPct = parseFloat(document.getElementById('f-iva').value) || 0;
+  const base = Math.max(0, subtotal - descuento);
+  const ivaVal = base * (ivaPct / 100);
+  const total = base + ivaVal;
+
+  document.getElementById('f-subtotal').textContent = '$' + subtotal.toFixed(2);
+  document.getElementById('f-desc-show').textContent = '-$' + descuento.toFixed(2);
+  document.getElementById('f-iva-show').textContent = '$' + ivaVal.toFixed(2);
+  document.getElementById('f-total').textContent = '$' + total.toFixed(2);
+}
+
+async function saveFactura() {
+  const pacienteId = document.getElementById('f-paciente').value;
+  if (!pacienteId) { showToast('Selecciona un paciente', 'error'); return; }
+
+  const items = _facturaItems.filter(it => it.desc && it.precio > 0);
+  if (!items.length) { showToast('Agrega al menos un ítem con descripción y precio', 'error'); return; }
+
+  const subtotal = items.reduce((s, it) => s + (it.cant * it.precio), 0);
+  const descuento = parseFloat(document.getElementById('f-descuento').value) || 0;
+  const ivaPct = parseFloat(document.getElementById('f-iva').value) || 0;
+  const base = Math.max(0, subtotal - descuento);
+  const ivaVal = base * (ivaPct / 100);
+  const total = base + ivaVal;
+
+  // Generar número de factura: 001-NNNN
+  DB.facturas = DB.facturas || [];
+  const nextNum = String((DB.facturas.length + 1)).padStart(5, '0');
+  const numero = `001-${nextNum}`;
+
+  const factura = {
+    id: 'fac_' + Date.now(),
+    numero,
+    pacienteId,
+    fecha: document.getElementById('f-fecha').value,
+    metodo: document.getElementById('f-metodo').value,
+    items,
+    subtotal,
+    descuento,
+    iva_pct: ivaPct,
+    iva_val: ivaVal,
+    total,
+    notas: document.getElementById('f-notas').value || '',
+    created: new Date().toISOString()
+  };
+
+  DB.facturas.push(factura);
+  DB.save();
+
+  // Supabase (si está configurado)
+  if (typeof sbSaveFactura === 'function') {
+    try {
+      const realId = await sbSaveFactura(factura);
+      if (realId) { factura.id = realId; saveDB(); }
+    } catch (e) { console.warn('Factura guardada solo local:', e.message); }
+  }
+
+  closeModal('modal-factura');
+  showToast('✅ Factura ' + numero + ' guardada', 'success');
+  renderFacturacion();
+
+  // Ofrecer imprimir
+  setTimeout(() => {
+    if (confirm('¿Imprimir factura ahora?')) printFactura(factura.id);
+  }, 300);
+}
+
+function deleteFactura(id) {
+  if (!confirm('¿Eliminar esta factura? Esta acción no se puede deshacer.')) return;
+  DB.facturas = (DB.facturas || []).filter(f => f.id !== id);
+  DB.save();
+  if (typeof sbDeleteFactura === 'function') sbDeleteFactura(id).catch(()=>{});
+  showToast('🗑️ Factura eliminada', 'success');
+  renderFacturacion();
+}
+
+function printFactura(id) {
+  const f = (DB.facturas || []).find(x => x.id === id);
+  if (!f) return;
+  const p = DB.patients.find(x => x.id === f.pacienteId);
+  const dr = _doctorProfile;
+
+  document.getElementById('print-content').innerHTML = `
+  <div style="font-family:'Helvetica Neue',Arial,sans-serif;background:#fff;color:#1a1a2e;max-width:720px;margin:0 auto;border:1px solid #d0d9e8;border-radius:4px;overflow:hidden;">
+
+    <!-- MEMBRETE -->
+    <div style="background:linear-gradient(135deg,#0f2447 0%,#1a4580 60%,#2563ab 100%);color:#fff;padding:14px 22px;display:flex;align-items:center;justify-content:space-between;gap:14px;">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <img src="./logodc.jpeg" alt="Logo" style="width:56px;height:56px;border-radius:10px;object-fit:cover;border:2px solid rgba(255,255,255,.35);background:#fff;">
+        <div>
+          <div style="font-size:1.1rem;font-weight:800;line-height:1.15;">Dr. ${dr.nombre||''} ${dr.apellido||''}</div>
+          <div style="font-size:0.76rem;opacity:.88;">${dr.especialidad||'Médico General'}</div>
+          <div style="font-size:0.66rem;opacity:.7;margin-top:2px;">${[dr.consultorio, dr.direccion].filter(Boolean).join(' · ')}</div>
+          <div style="font-size:0.66rem;opacity:.7;">${[dr.telefono, dr.email].filter(Boolean).join(' · ')}</div>
+        </div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:0.58rem;text-transform:uppercase;letter-spacing:.12em;opacity:.7;">Factura</div>
+        <div style="font-size:1.3rem;font-weight:800;font-family:monospace;margin-top:2px;">${f.numero}</div>
+        <div style="font-size:0.72rem;opacity:.75;margin-top:2px;">${fmtDate(f.fecha)}</div>
+      </div>
+    </div>
+
+    <!-- BANDA -->
+    <div style="background:#e8f0fb;border-top:2px solid #2563ab;border-bottom:2px solid #2563ab;text-align:center;padding:5px;font-size:0.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.18em;color:#1a4580;">
+      ✦ Factura / Recibo ✦
+    </div>
+
+    <div style="padding:18px 22px;">
+
+      <!-- PACIENTE -->
+      <div style="background:#f4f7fc;border:1px solid #dde8f8;border-radius:9px;padding:12px 16px;margin-bottom:14px;display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px;">
+        <div>
+          <div style="font-size:0.6rem;color:#888;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">Cliente</div>
+          <div style="font-weight:800;font-size:1rem;color:#0f2447;">${p ? p.nombre + ' ' + p.apellido : '—'}</div>
+        </div>
+        <div>
+          <div style="font-size:0.6rem;color:#888;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">Cédula</div>
+          <div style="font-weight:700;">${p?.cedula || '—'}</div>
+        </div>
+        <div>
+          <div style="font-size:0.6rem;color:#888;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">Teléfono</div>
+          <div style="font-weight:700;">${p?.tel || '—'}</div>
+        </div>
+      </div>
+
+      <!-- ITEMS -->
+      <table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:0.85rem;">
+        <thead>
+          <tr style="background:#1a4580;color:#fff;">
+            <th style="padding:8px 12px;text-align:left;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Descripción</th>
+            <th style="padding:8px 10px;text-align:center;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;width:60px;">Cant.</th>
+            <th style="padding:8px 10px;text-align:right;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;width:90px;">Precio</th>
+            <th style="padding:8px 10px;text-align:right;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;width:100px;">Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${f.items.map(it => `
+            <tr style="border-bottom:1px solid #e2e8f0;">
+              <td style="padding:9px 12px;">${it.desc}</td>
+              <td style="padding:9px 10px;text-align:center;">${it.cant}</td>
+              <td style="padding:9px 10px;text-align:right;">$${Number(it.precio).toFixed(2)}</td>
+              <td style="padding:9px 10px;text-align:right;font-weight:600;">$${(it.cant*it.precio).toFixed(2)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+
+      <!-- TOTALES -->
+      <div style="margin-left:auto;max-width:280px;font-size:0.9rem;">
+        <div style="display:flex;justify-content:space-between;padding:4px 0;color:#555;">
+          <span>Subtotal:</span> <span>$${f.subtotal.toFixed(2)}</span>
+        </div>
+        ${f.descuento>0 ? `<div style="display:flex;justify-content:space-between;padding:4px 0;color:#c53030;"><span>Descuento:</span> <span>-$${f.descuento.toFixed(2)}</span></div>` : ''}
+        ${f.iva_pct>0 ? `<div style="display:flex;justify-content:space-between;padding:4px 0;color:#555;"><span>IVA (${f.iva_pct}%):</span> <span>$${f.iva_val.toFixed(2)}</span></div>` : ''}
+        <div style="display:flex;justify-content:space-between;padding:10px 14px;margin-top:8px;background:linear-gradient(135deg,#0f2447 0%,#1a4580 100%);color:#fff;border-radius:8px;font-size:1.1rem;font-weight:800;">
+          <span>TOTAL:</span> <span>$${f.total.toFixed(2)}</span>
+        </div>
+        <div style="text-align:right;margin-top:8px;font-size:0.75rem;color:#888;">Método de pago: <strong>${f.metodo}</strong></div>
+      </div>
+
+      ${f.notas ? `<div style="margin-top:16px;padding:10px 14px;background:#fffdf0;border:1px solid #f0e6a0;border-radius:7px;font-size:0.82rem;"><strong>Notas:</strong> ${f.notas}</div>` : ''}
+
+      <!-- PIE -->
+      <div style="margin-top:28px;padding-top:14px;border-top:1px dashed #c5d0e0;display:flex;justify-content:space-between;align-items:flex-end;">
+        <div style="font-size:0.62rem;color:#aaa;">
+          <div>Documento generado por MediCore</div>
+          <div>${new Date().toLocaleDateString('es-EC',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
+        </div>
+        <div style="text-align:center;min-width:180px;">
+          <div style="height:32px;border-bottom:1.5px solid #0f2447;margin-bottom:4px;"></div>
+          <div style="font-size:0.78rem;font-weight:800;color:#0f2447;">Dr. ${dr.nombre||''} ${dr.apellido||''}</div>
+          <div style="font-size:0.68rem;color:#555;">Firma autorizada</div>
+        </div>
+      </div>
+
+    </div>
+  </div>`;
+  document.getElementById('print-area').style.display = 'block';
+  setTimeout(()=>{ window.print(); document.getElementById('print-area').style.display='none'; }, 200);
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // REPORTES
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function renderReportes() {
@@ -3024,7 +3425,7 @@ function closeSidebar(){ document.getElementById('sidebar').classList.remove('op
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // CONFIG
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-function clearData(){ if(confirm('¿Eliminar todos los datos demo y comenzar desde cero?')){ localStorage.clear(); DB.patients=[]; DB.consultations=[]; DB.appointments=[]; renderDashboard(); if(currentView==='pacientes')renderPatients(); showToast('warn','Datos eliminados','Base de datos limpiada'); } }
+function clearData(){ if(confirm('¿Eliminar todos los datos demo y comenzar desde cero?')){ localStorage.clear(); DB.patients=[]; DB.consultations=[]; DB.appointments=[]; DB.facturas=[]; renderDashboard(); if(currentView==='pacientes')renderPatients(); showToast('warn','Datos eliminados','Base de datos limpiada'); } }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // PWA INSTALL

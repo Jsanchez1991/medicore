@@ -82,10 +82,11 @@ function getDoctorId() { return _doctorId }
 async function sbLoadAll() {
   if (!_doctorId || !navigator.onLine) return null
 
-  const [pRes, cRes, aRes] = await Promise.all([
+  const [pRes, cRes, aRes, fRes] = await Promise.all([
     sb.from('pacientes').select('*').eq('doctor_id', _doctorId).order('created_at', { ascending: false }),
     sb.from('consultas').select('*').eq('doctor_id', _doctorId).order('created_at', { ascending: false }),
     sb.from('citas').select('*').eq('doctor_id', _doctorId).order('fecha', { ascending: true }),
+    sb.from('facturas').select('*').eq('doctor_id', _doctorId).order('fecha', { ascending: false }),
   ])
 
   if (pRes.error || cRes.error || aRes.error) {
@@ -97,6 +98,7 @@ async function sbLoadAll() {
     patients:      (pRes.data || []).map(mapPatientFromDB),
     consultations: (cRes.data || []).map(mapConsultFromDB),
     appointments:  (aRes.data || []).map(mapApptFromDB),
+    facturas:      fRes.error ? [] : (fRes.data || []).map(mapFacturaFromDB),
   }
 }
 
@@ -259,6 +261,24 @@ function mapApptFromDB(a) {
   }
 }
 
+function mapFacturaFromDB(f) {
+  return {
+    id:         f.id,
+    numero:     f.numero     || '',
+    pacienteId: f.paciente_id,
+    fecha:      f.fecha      || '',
+    metodo:     f.metodo     || 'Efectivo',
+    items:      f.items      || [],
+    subtotal:   f.subtotal   || 0,
+    descuento:  f.descuento  || 0,
+    iva_pct:    f.iva_pct    || 0,
+    iva_val:    f.iva_val    || 0,
+    total:      f.total      || 0,
+    notas:      f.notas      || '',
+    created:    f.created_at,
+  }
+}
+
 // ════════════════════════════════════════════════════════════════
 // HELPERS
 // ════════════════════════════════════════════════════════════════
@@ -270,6 +290,47 @@ function isUUID(id) {
 function toDateStr(isoOrDate) {
   if (!isoOrDate) return new Date().toISOString().split('T')[0]
   return new Date(isoOrDate).toISOString().split('T')[0]
+}
+
+// ════════════════════════════════════════════════════════════════
+// STORAGE — IMÁGENES DE CONSULTA
+// ════════════════════════════════════════════════════════════════
+
+// ════════════════════════════════════════════════════════════════
+// FACTURAS
+// ════════════════════════════════════════════════════════════════
+
+async function sbSaveFactura(factura) {
+  if (!_doctorId || !navigator.onLine) return null
+
+  const row = {
+    doctor_id:   _doctorId,
+    paciente_id: factura.pacienteId,
+    numero:      factura.numero,
+    fecha:       factura.fecha,
+    metodo:      factura.metodo,
+    items:       factura.items      || [],
+    subtotal:    factura.subtotal   || 0,
+    descuento:   factura.descuento  || 0,
+    iva_pct:     factura.iva_pct    || 0,
+    iva_val:     factura.iva_val    || 0,
+    total:       factura.total      || 0,
+    notas:       factura.notas      || null,
+  }
+
+  if (isUUID(factura.id)) {
+    await sb.from('facturas').update(row).eq('id', factura.id)
+    return factura.id
+  } else {
+    const { data, error } = await sb.from('facturas').insert(row).select('id').single()
+    if (error) { console.warn('Error guardando factura:', error); return null }
+    return data?.id
+  }
+}
+
+async function sbDeleteFactura(id) {
+  if (!navigator.onLine || !isUUID(id)) return
+  await sb.from('facturas').delete().eq('id', id)
 }
 
 // ════════════════════════════════════════════════════════════════
