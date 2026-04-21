@@ -1185,20 +1185,36 @@
           <small style="color:var(--text3);font-size:0.73rem;margin-top:4px;display:block">💡 Se autocompleta al seleccionar un código CIE-10, o escribe libremente</small>
         </div>
         <div class="form-group full">
-          <label>Procedimiento Estético <span style="font-size:0.73rem;color:var(--text3);font-weight:400">(opcional)</span></label>
-          <div class="proc-grid">
-            <select id="c-cat-estetica" onchange="onCatEsteticaChange()">
-              <option value="">— Seleccionar categoría —</option>
-            </select>
-            <select id="c-proc-nombre">
-              <option value="">— Seleccionar procedimiento —</option>
-            </select>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <label style="margin-bottom:0;">Procedimiento Estético <span style="font-size:0.73rem;color:var(--text3);font-weight:400">(opcional)</span></label>
+            <button type="button" id="btn-proc-toggle" onclick="toggleProcMode()" style="font-size:0.73rem;padding:3px 10px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;">✏️ Ingresar manual</button>
           </div>
-          <div class="proc-detail" id="proc-detail-row">
-            <select id="c-proc-tecnica">
-              <option value="">— Técnica —</option>
-            </select>
-            <input type="text" id="c-proc-zona" placeholder="Zona(s): ej. Abdomen, Flancos">
+
+          <!-- Modo catálogo (por defecto) -->
+          <div id="proc-catalogo-mode">
+            <div class="proc-grid">
+              <select id="c-cat-estetica" onchange="onCatEsteticaChange()">
+                <option value="">— Seleccionar categoría —</option>
+              </select>
+              <select id="c-proc-nombre" onchange="onProcNombreChange()">
+                <option value="">— Seleccionar procedimiento —</option>
+              </select>
+            </div>
+            <div class="proc-detail" id="proc-detail-row">
+              <select id="c-proc-tecnica">
+                <option value="">— Técnica —</option>
+              </select>
+              <input type="text" id="c-proc-zona" placeholder="Zona(s): ej. Abdomen, Flancos">
+            </div>
+          </div>
+
+          <!-- Modo manual -->
+          <div id="proc-manual-mode" style="display:none;">
+            <input type="text" id="c-proc-manual-nombre" placeholder="Nombre del procedimiento (ej: Hidrolipoclasia, Biorremodelación peneana...)" style="margin-bottom:8px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+              <input type="text" id="c-proc-manual-tecnica" placeholder="Técnica (ej: Ácido hialurónico, Ultrasonido...)">
+              <input type="text" id="c-proc-manual-zona" placeholder="Zona(s): ej. Abdomen, Flancos">
+            </div>
           </div>
         </div>
         <div class="form-group full"><label>Examen Físico</label><textarea id="c-examen" placeholder="Hallazgos del examen físico, sistemas revisados..." rows="3"></textarea></div>
@@ -1536,17 +1552,71 @@ function onProcNombreChange(catObj) {
   }
 }
 
+// Toggle entre modo catálogo y modo manual
+function toggleProcMode() {
+  const btn = document.getElementById('btn-proc-toggle');
+  const catalogo = document.getElementById('proc-catalogo-mode');
+  const manual = document.getElementById('proc-manual-mode');
+  const isManual = manual.style.display !== 'none';
+
+  if (isManual) {
+    // Volver a catálogo
+    manual.style.display = 'none';
+    catalogo.style.display = 'block';
+    btn.textContent = '✏️ Ingresar manual';
+    // Limpiar campos manuales
+    document.getElementById('c-proc-manual-nombre').value = '';
+    document.getElementById('c-proc-manual-tecnica').value = '';
+    document.getElementById('c-proc-manual-zona').value = '';
+  } else {
+    // Cambiar a manual
+    catalogo.style.display = 'none';
+    manual.style.display = 'block';
+    btn.textContent = '📋 Usar catálogo';
+    // Limpiar campos catálogo
+    resetProcedimientoEstetico();
+  }
+}
+
+function _isProcManualMode() {
+  return document.getElementById('proc-manual-mode')?.style.display !== 'none';
+}
+
 function getProcedimientoEstetico() {
+  if (_isProcManualMode()) {
+    const nombre = document.getElementById('c-proc-manual-nombre')?.value.trim() || '';
+    const tecnica = document.getElementById('c-proc-manual-tecnica')?.value.trim() || '';
+    const zona = document.getElementById('c-proc-manual-zona')?.value.trim() || '';
+    if (!nombre) return null;
+    return { categoria: 'Manual', nombre, tecnica, zona, manual: true };
+  }
   const cat = document.getElementById('c-cat-estetica')?.value || '';
   const nombre = document.getElementById('c-proc-nombre')?.value || '';
   const tecnica = document.getElementById('c-proc-tecnica')?.value || '';
   const zona = document.getElementById('c-proc-zona')?.value.trim() || '';
   if (!cat && !nombre) return null;
-  return { categoria: cat, nombre, tecnica, zona };
+  return { categoria: cat, nombre, tecnica, zona, manual: false };
 }
 
 function setProcedimientoEstetico(proc) {
   if (!proc) return;
+
+  if (proc.manual) {
+    // Activar modo manual si era manual
+    document.getElementById('proc-catalogo-mode').style.display = 'none';
+    document.getElementById('proc-manual-mode').style.display = 'block';
+    document.getElementById('btn-proc-toggle').textContent = '📋 Usar catálogo';
+    document.getElementById('c-proc-manual-nombre').value = proc.nombre || '';
+    document.getElementById('c-proc-manual-tecnica').value = proc.tecnica || '';
+    document.getElementById('c-proc-manual-zona').value = proc.zona || '';
+    return;
+  }
+
+  // Modo catálogo
+  document.getElementById('proc-catalogo-mode').style.display = 'block';
+  document.getElementById('proc-manual-mode').style.display = 'none';
+  document.getElementById('btn-proc-toggle').textContent = '✏️ Ingresar manual';
+
   const catSel = document.getElementById('c-cat-estetica');
   if (catSel && proc.categoria) {
     catSel.value = proc.categoria;
@@ -1577,6 +1647,13 @@ function resetProcedimientoEstetico() {
   if (procSel) procSel.innerHTML = '<option value="">— Seleccionar procedimiento —</option>';
   if (tecSel) tecSel.innerHTML = '<option value="">— Técnica —</option>';
   if (zonaInput) zonaInput.value = '';
+  // También resetear modo manual
+  const manual = document.getElementById('proc-manual-mode');
+  const catalogo = document.getElementById('proc-catalogo-mode');
+  const btn = document.getElementById('btn-proc-toggle');
+  if (manual) { manual.style.display = 'none'; document.getElementById('c-proc-manual-nombre').value = ''; document.getElementById('c-proc-manual-tecnica').value = ''; document.getElementById('c-proc-manual-zona').value = ''; }
+  if (catalogo) catalogo.style.display = 'block';
+  if (btn) btn.textContent = '✏️ Ingresar manual';
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -3102,6 +3179,10 @@ const PLANTILLAS_DEFAULT = [
   { nombre: 'Control post-operatorio', diagnostico: 'Control post-operatorio satisfactorio', tratamiento: 'Continuar antibiótico prescrito\nAnalgésico según necesidad', notas: 'Herida en buenas condiciones. Próximo control en 7 días.' },
   { nombre: 'Lipo abdominal', diagnostico: 'Post-liposucción abdominal. Evolución satisfactoria', tratamiento: 'Amoxicilina + Ácido Clavulánico 875/125mg — 1 comprimido cada 12h por 7 días\nIbuprofeno 600mg — 1 comprimido cada 8h por 5 días\nOmeprazol 20mg — 1 cápsula en ayunas', notas: 'Uso de faja compresora 24h por 30 días. No actividad física de alto impacto por 4 semanas. Control en 7 días.' },
   { nombre: 'Medicina estética', diagnostico: 'Procedimiento de medicina estética realizado sin complicaciones', tratamiento: 'Según indicaciones del procedimiento realizado', notas: 'Evitar exposición solar directa. Aplicar protector solar FPS 50+. Control en 15 días.' },
+  { nombre: 'Hidrolipoclasia', diagnostico: 'Hidrolipoclasia ultrasónica. Procedimiento realizado sin complicaciones', tratamiento: 'Drenaje linfático manual 3 veces/semana por 4 semanas\nUso de faja compresora 24h durante 30 días\nHidratación abundante (2L agua/día)\nEvitar ejercicio de alto impacto 72h post-procedimiento', notas: 'Zonas tratadas: ___. Volumen solución aplicado: ___ ml. Próximo control en 7 días. Resultado final visible a las 4-6 semanas.' },
+  { nombre: 'Agrandamiento peneano', diagnostico: 'Biorremodelación peneana con ácido hialurónico reticulado. Procedimiento realizado sin complicaciones', tratamiento: 'Reposo sexual estricto 7 días\nAplicar hielo local 20 min cada 6h las primeras 48h\nNo masajes en zona tratada por 15 días\nIbuprofeno 400mg c/8h por 3 días si presenta dolor\nAmoxicilina 500mg c/8h por 5 días (profilaxis)', notas: 'Volumen total aplicado: ___ ml. Área: ___. Resultado inmediato visible. Control en 15 días para evaluación de resultado final.' },
+  { nombre: 'Relleno facial (AH)', diagnostico: 'Aplicación de ácido hialurónico facial. Procedimiento realizado sin complicaciones', tratamiento: 'Aplicar hielo local 15 min cada 4h las primeras 24h\nNo masajes en zona tratada por 15 días\nEvitar exposición solar directa 7 días\nNo actividad física intensa 48h\nNo alcohol 24h', notas: 'Zona tratada: ___. Producto: ___. Volumen: ___ ml. Control en 15 días.' },
+  { nombre: 'Toxina botulínica', diagnostico: 'Aplicación de toxina botulínica tipo A. Procedimiento realizado sin complicaciones', tratamiento: 'No masajear la zona tratada por 24h\nNo acostarse en las próximas 4h\nNo actividad física intensa 24h\nNo exposición a calor intenso (sauna, baños calientes) 24h\nEfecto visible en 7-14 días, duración 4-6 meses', notas: 'Zonas tratadas: ___. Dosis total: ___ U. Producto: ___. Control en 15 días para evaluar resultado.' },
 ];
 
 function getPlantillas() {
