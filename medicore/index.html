@@ -1676,18 +1676,21 @@ const DB = {
   consultations: [],
   appointments: [],
   facturas: [],
+  blockedDays: [],
   save() {
     // Siempre guardar en localStorage (caché offline)
     localStorage.setItem('mc_patients',      JSON.stringify(this.patients));
     localStorage.setItem('mc_consultations', JSON.stringify(this.consultations));
     localStorage.setItem('mc_appointments',  JSON.stringify(this.appointments));
     localStorage.setItem('mc_facturas',      JSON.stringify(this.facturas || []));
+    localStorage.setItem('mc_blockedDays',   JSON.stringify(this.blockedDays || []));
   },
   load() {
     this.patients      = JSON.parse(localStorage.getItem('mc_patients')      || '[]');
     this.consultations = JSON.parse(localStorage.getItem('mc_consultations') || '[]');
     this.appointments  = JSON.parse(localStorage.getItem('mc_appointments')  || '[]');
     this.facturas      = JSON.parse(localStorage.getItem('mc_facturas')      || '[]');
+    this.blockedDays   = JSON.parse(localStorage.getItem('mc_blockedDays')   || '[]');
     // Solo cargar datos demo si NO hay Supabase configurado
     if (this.patients.length === 0 && !sbConfigured()) this.seedData();
   },
@@ -2430,31 +2433,30 @@ function renderDayAppointments(dateStr) {
 
   const el = document.getElementById('upcoming-appointments');
 
-  if (dayAppts.length === 0) {
-    // Si no hay citas en el día seleccionado, mostrar próximas
-    const upcoming = DB.appointments
-      .filter(a => a.fecha >= today)
-      .sort((a,b) => (a.fecha+a.hora).localeCompare(b.fecha+b.hora))
-      .slice(0, 8);
-    if (titleEl) titleEl.textContent = 'Próximas Citas';
-    if (subEl)   subEl.textContent = upcoming.length ? `${upcoming.length} agendadas` : '';
-    if (!upcoming.length) {
-      el.innerHTML = `<div class="empty-state" style="padding:28px 0">
-        <div style="font-size:2.5rem;margin-bottom:10px">📅</div>
-        <p style="font-size:0.88rem;color:var(--text3)">Sin citas programadas</p>
-        <button class="btn-accent" style="margin-top:14px;padding:8px 18px;font-size:0.82rem" onclick="openNewApptOnDate('${dateStr}')">+ Agendar cita</button>
-      </div>`;
-      return;
-    }
-    el.innerHTML = upcoming.map(a => apptCard(a, true)).join('');
+  // Verificar si el día está bloqueado
+  const isBlocked = (DB.blockedDays || []).includes(dateStr);
+
+  if (isBlocked && dayAppts.length === 0) {
+    if (titleEl) titleEl.textContent = dateLabel.charAt(0).toUpperCase()+dateLabel.slice(1);
+    if (subEl)   subEl.innerHTML = '<span style="color:var(--danger);font-weight:600">🚫 Día bloqueado</span>';
+    el.innerHTML = `<div class="empty-state" style="padding:28px 0">
+      <div style="font-size:2.5rem;margin-bottom:10px">🚫</div>
+      <p style="font-size:0.88rem;color:var(--danger);font-weight:600">Día bloqueado — No se aceptan citas</p>
+      <p style="font-size:0.78rem;color:var(--text3);margin-top:6px">La doctora no atiende este día</p>
+      <button class="btn-ghost" style="margin-top:14px;padding:8px 18px;font-size:0.82rem;color:var(--danger);border-color:var(--danger)" onclick="toggleBlockDay('${dateStr}')">🔓 Desbloquear día</button>
+    </div>`;
     return;
   }
 
   el.innerHTML = `
+    ${isBlocked ? `<div style="background:#fff0f0;border:1px solid var(--danger);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:0.78rem;color:var(--danger);display:flex;align-items:center;justify-content:space-between;"><span>🚫 Día bloqueado</span><button class="btn-ghost" style="font-size:0.72rem;padding:4px 10px;color:var(--danger);border-color:var(--danger)" onclick="toggleBlockDay('${dateStr}')">Desbloquear</button></div>` : ''}
     <div class="appt-day-label">${dateLabel} · ${dayAppts.length} cita${dayAppts.length!==1?'s':''}</div>
     ${dayAppts.map(a => apptCard(a, false)).join('')}
-    <div style="margin-top:12px;text-align:center">
+    ${!isBlocked ? `<div style="margin-top:12px;text-align:center">
       <button class="btn-ghost" style="font-size:0.8rem;padding:7px 16px" onclick="openNewApptOnDate('${dateStr}')">+ Agregar otra cita</button>
+    </div>` : ''}
+    <div style="margin-top:8px;text-align:center">
+      <button class="btn-ghost" style="font-size:0.72rem;padding:5px 12px;color:${isBlocked?'var(--accent)':'var(--danger)'};border-color:${isBlocked?'var(--accent)':'var(--danger)'}" onclick="toggleBlockDay('${dateStr}')">${isBlocked ? '🔓 Desbloquear día' : '🔒 Bloquear día'}</button>
     </div>`;
 }
 
@@ -2509,8 +2511,28 @@ function cancelAppt(id) {
 }
 
 function openNewApptOnDate(dateStr) {
+  // Verificar si el día está bloqueado
+  if ((DB.blockedDays || []).includes(dateStr)) {
+    showToast('error', 'Día bloqueado', 'La doctora no atiende este día. Desbloquéalo primero si deseas agendar.');
+    return;
+  }
   openNewAppointment();
   setTimeout(()=>{ document.getElementById('a-fecha').value = dateStr; }, 100);
+}
+
+function toggleBlockDay(dateStr) {
+  if (!DB.blockedDays) DB.blockedDays = [];
+  const idx = DB.blockedDays.indexOf(dateStr);
+  if (idx >= 0) {
+    DB.blockedDays.splice(idx, 1);
+    DB.save();
+    showToast('success', 'Día desbloqueado', 'Se pueden agendar citas en este día');
+  } else {
+    DB.blockedDays.push(dateStr);
+    DB.save();
+    showToast('warn', 'Día bloqueado', 'No se aceptarán citas este día');
+  }
+  renderAgenda();
 }
 
 function goToday() {
@@ -2549,9 +2571,14 @@ function renderCalendar() {
   for(let d=1;d<=daysInMonth;d++){
     const ds=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const dayAppts = apptByDate[ds]||[];
+    const isBlocked = (DB.blockedDays || []).includes(ds);
     const el=document.createElement('div'); el.className='cal-day';
     if(ds===todayStr) el.classList.add('today');
     if(ds===_selectedDate) el.classList.add('cal-selected');
+    if(isBlocked) {
+      el.classList.add('cal-blocked');
+      el.style.cssText += 'background:repeating-linear-gradient(135deg,transparent,transparent 4px,rgba(200,60,60,0.08) 4px,rgba(200,60,60,0.08) 8px);opacity:0.7;';
+    }
 
     // Número del día
     const num=document.createElement('div'); num.className='cal-day-num'; num.textContent=d;
@@ -2595,6 +2622,11 @@ function saveAppointment() {
   const pid = document.getElementById('a-paciente').value;
   const fecha = document.getElementById('a-fecha').value;
   if(!pid||!fecha){ showToast('error','Campos requeridos',''); return; }
+  // Verificar si el día está bloqueado
+  if ((DB.blockedDays || []).includes(fecha)) {
+    showToast('error', 'Día bloqueado', 'No se pueden crear citas en días bloqueados. Selecciona otra fecha.');
+    return;
+  }
   const newAppt = { id:uid(), pacienteId:pid, fecha, hora:document.getElementById('a-hora').value, motivo:document.getElementById('a-motivo').value||'Consulta', estado:'pending' };
   DB.appointments.push(newAppt);
   DB.save(); closeModal('modal-appt');
