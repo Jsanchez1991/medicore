@@ -1312,8 +1312,14 @@
       </div>
       <div class="form-group full">
         <label>Servicios / Ítems</label>
+        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
+          <select id="f-servicio-select" style="flex:1;min-width:200px;">
+            <option value="">⚡ Agregar servicio rápido...</option>
+          </select>
+          <button type="button" class="btn-accent" onclick="addServicioFromCatalog()" style="padding:7px 14px;font-size:0.82rem;white-space:nowrap;">+ Agregar</button>
+        </div>
         <div id="f-items"></div>
-        <button type="button" class="btn-ghost" onclick="addFacturaItem()" style="margin-top:8px;font-size:0.82rem;">+ Agregar ítem</button>
+        <button type="button" class="btn-ghost" onclick="addFacturaItem()" style="margin-top:8px;font-size:0.82rem;">+ Agregar ítem personalizado</button>
       </div>
       <div class="form-group">
         <label>Descuento ($)</label>
@@ -3302,6 +3308,30 @@ function deletePlantilla(i) {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// CATÁLOGO DE SERVICIOS DEL CONSULTORIO
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const SERVICIOS_CONSULTORIO = [
+  { nombre: 'Consulta estética',                       precio: 0 },
+  { nombre: 'Engrosamiento y proyección del pene',     precio: 0 },
+  { nombre: 'Mesoterapia capilar',                     precio: 0 },
+  { nombre: 'Mesoterapia corporal',                    precio: 0 },
+  { nombre: 'Botox',                                   precio: 0 },
+  { nombre: 'Baby botox',                              precio: 0 },
+  { nombre: 'Rinomodelación',                          precio: 0 },
+  { nombre: 'Aumento de labios',                       precio: 0 },
+  { nombre: 'Limpieza facial',                         precio: 0 },
+  { nombre: 'Cauterización de verrugas y lunares',     precio: 0 },
+  { nombre: 'Rejuvenecimiento vaginal',                precio: 0 },
+  { nombre: 'Despigmentación zona íntima',             precio: 0 },
+  { nombre: 'Relleno de surcos nasogenianos',          precio: 0 },
+  { nombre: 'Hilos tensores',                          precio: 0 },
+  { nombre: 'Levantamiento de glúteos',                precio: 0 },
+  { nombre: 'Tratamiento para varices',                precio: 0 },
+  { nombre: 'Sueroterapia detox',                      precio: 0 },
+  { nombre: 'Megadosis vitamina C',                    precio: 0 },
+];
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // FACTURACIÓN
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 let _facturaItems = [];
@@ -3383,9 +3413,27 @@ function openFacturaModal() {
   sel.innerHTML = '<option value="">— Seleccionar —</option>' +
     DB.patients.map(p => `<option value="${p.id}">${p.nombre} ${p.apellido}${p.cedula ? ' · ' + p.cedula : ''}</option>`).join('');
 
+  // Poblar catálogo de servicios
+  const servSel = document.getElementById('f-servicio-select');
+  servSel.innerHTML = '<option value="">⚡ Agregar servicio rápido...</option>' +
+    SERVICIOS_CONSULTORIO.map((s, i) => `<option value="${i}">${s.nombre}${s.precio ? ' — $' + s.precio.toFixed(2) : ''}</option>`).join('');
+
   renderFacturaItems();
   calcFacturaTotal();
   openModal('modal-factura');
+}
+
+function addServicioFromCatalog() {
+  const sel = document.getElementById('f-servicio-select');
+  const idx = sel.value;
+  if (idx === '') { showToast('warn', 'Selecciona un servicio', 'Elige un servicio del catálogo'); return; }
+  const serv = SERVICIOS_CONSULTORIO[parseInt(idx)];
+  if (!serv) return;
+  _facturaItems.push({ desc: serv.nombre, cant: 1, precio: serv.precio });
+  sel.value = '';
+  renderFacturaItems();
+  calcFacturaTotal();
+  showToast('success', 'Servicio agregado', serv.nombre);
 }
 
 function renderFacturaItems() {
