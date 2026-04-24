@@ -2980,6 +2980,7 @@ function printConsultReport() {
   const ant = c.antecedentes || {};
   const cedulaProf = localStorage.getItem('mc_cedula_prof') || '';
   const edad = p.nacimiento ? getAge(p.nacimiento) + ' años' : '—';
+  let _printHtml = '';
   const sexoLabel = p.sexo === 'M' ? 'Masculino' : p.sexo === 'F' ? 'Femenino' : p.sexo || '—';
 
   const secTitle = (icon, text) =>
@@ -2994,7 +2995,7 @@ function printConsultReport() {
          <div style="font-size:0.62rem;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-top:2px">${label}</div>
        </div>` : '';
 
-  document.getElementById('print-content').innerHTML = `
+  _printHtml = `
   <div style="font-family:'Helvetica Neue',Arial,sans-serif;background:#fff;color:#1a1a2e;">
 
     <!-- ══ HEADER ══ -->
@@ -3151,13 +3152,38 @@ function printConsultReport() {
 
     </div>
   </div>`;
-  document.getElementById('print-area').style.display = 'block';
-  setTimeout(()=>{ window.print(); document.getElementById('print-area').style.display='none'; }, 200);
+  printInNewWindow(_printHtml);
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // PLANTILLA RECETA MÉDICA
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// IMPRESIÓN EN VENTANA AISLADA
+// Evita la segunda hoja en blanco al imprimir
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function printInNewWindow(innerHtml) {
+  const win = window.open('', '_blank', 'width=900,height=700');
+  if (!win) { alert('Por favor permita ventanas emergentes para imprimir.'); return; }
+  win.document.write(`<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>MediCore — Impresión</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #fff; }
+    @page { margin: 10mm; size: A4; }
+    @media print { body { margin: 0; } }
+  </style>
+</head>
+<body>${innerHtml}</body>
+</html>`);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { win.print(); win.close(); }, 600);
+}
+
 function printReceta() {
   if (!_currentConsult) return;
   const { c, p } = _currentConsult;
@@ -3165,7 +3191,7 @@ function printReceta() {
   const cedulaProf = localStorage.getItem('mc_cedula_prof') || '';
   const edad = p.nacimiento ? getAge(p.nacimiento) + ' años' : '—';
 
-  document.getElementById('print-content').innerHTML = `
+  const _printHtml = `
   <div style="font-family:'Helvetica Neue',Arial,sans-serif;background:#fff;color:#1a1a2e;max-width:720px;margin:0 auto;border:1px solid #d0d9e8;border-radius:4px;overflow:hidden;">
 
     <!-- ══ MEMBRETE ══ -->
@@ -3251,8 +3277,7 @@ function printReceta() {
 
     </div>
   </div>`;
-  document.getElementById('print-area').style.display = 'block';
-  setTimeout(()=>{ window.print(); document.getElementById('print-area').style.display='none'; }, 200);
+  printInNewWindow(_printHtml);
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -3624,7 +3649,7 @@ function printFactura(id) {
   const p = DB.patients.find(x => x.id === f.pacienteId);
   const dr = _doctorProfile;
 
-  document.getElementById('print-content').innerHTML = `
+  const _printHtml = `
   <div style="font-family:'Helvetica Neue',Arial,sans-serif;background:#fff;color:#1a1a2e;max-width:720px;margin:0 auto;border:1px solid #d0d9e8;border-radius:4px;overflow:hidden;">
 
     <!-- MEMBRETE -->
@@ -3716,8 +3741,7 @@ function printFactura(id) {
 
     </div>
   </div>`;
-  document.getElementById('print-area').style.display = 'block';
-  setTimeout(()=>{ window.print(); document.getElementById('print-area').style.display='none'; }, 200);
+  printInNewWindow(_printHtml);
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -3805,7 +3829,7 @@ function printReport() {
   const ingresosMes = facturasMes.reduce((s, f) => s + (f.total || 0), 0);
 
   // ── Construir HTML del reporte ──
-  document.getElementById('print-content').innerHTML = `
+  const _printHtml = `
   <div style="font-family:'Helvetica Neue',Arial,sans-serif;background:#fff;color:#1a1a2e;max-width:740px;margin:0 auto;">
 
     <!-- MEMBRETE -->
@@ -3935,8 +3959,7 @@ function printReport() {
     </div>
   </div>`;
 
-  document.getElementById('print-area').style.display = 'block';
-  setTimeout(() => { window.print(); document.getElementById('print-area').style.display = 'none'; }, 200);
+  printInNewWindow(_printHtml);
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
