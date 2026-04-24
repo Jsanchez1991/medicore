@@ -3710,7 +3710,187 @@ function exportData(format) {
     showToast('success','CSV exportado','pacientes.csv');
   }
 }
-function printReport(){ window.print(); }
+function printReport() {
+  const dr = _doctorProfile || {};
+  const now = new Date();
+  const mesActual = now.toLocaleDateString('es-EC', { month: 'long', year: 'numeric' });
+  const fechaReporte = now.toLocaleDateString('es-EC', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  // ── Calcular estadísticas ──
+  const totalPacientes = DB.patients.length;
+  const totalConsultas = DB.consultations.length;
+  const totalCitas     = DB.appointments.length;
+
+  // Distribución por edad
+  const ageGroups = { '0-17':0, '18-35':0, '36-50':0, '51-65':0, '65+':0 };
+  DB.patients.forEach(p => {
+    const a = getAge(p.nacimiento);
+    if (a < 18) ageGroups['0-17']++;
+    else if (a < 36) ageGroups['18-35']++;
+    else if (a < 51) ageGroups['36-50']++;
+    else if (a < 66) ageGroups['51-65']++;
+    else ageGroups['65+']++;
+  });
+
+  // Consultas por mes (año actual)
+  const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const porMes = new Array(12).fill(0);
+  DB.consultations.forEach(c => {
+    const d = new Date(c.fecha);
+    if (d.getFullYear() === now.getFullYear()) porMes[d.getMonth()]++;
+  });
+  const maxMes = Math.max(...porMes, 1);
+
+  // Tipos de consulta
+  const tipos = {};
+  DB.consultations.forEach(c => { tipos[c.tipo] = (tipos[c.tipo] || 0) + 1; });
+
+  // Top diagnósticos
+  const diags = {};
+  DB.consultations.forEach(c => { if (c.diagnostico) diags[c.diagnostico] = (diags[c.diagnostico] || 0) + 1; });
+  const topDiags = Object.entries(diags).sort((a,b) => b[1]-a[1]).slice(0, 8);
+
+  // Ingresos del mes (facturas)
+  const facturasMes = (DB.facturas || []).filter(f => {
+    const d = new Date(f.fecha);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  });
+  const ingresosMes = facturasMes.reduce((s, f) => s + (f.total || 0), 0);
+
+  // ── Construir HTML del reporte ──
+  document.getElementById('print-content').innerHTML = `
+  <div style="font-family:'Helvetica Neue',Arial,sans-serif;background:#fff;color:#1a1a2e;max-width:740px;margin:0 auto;">
+
+    <!-- MEMBRETE -->
+    <div style="background:linear-gradient(135deg,#0f2447 0%,#1a4580 60%,#2563ab 100%);color:#fff;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;border-radius:4px 4px 0 0;">
+      <div style="display:flex;align-items:center;gap:14px;">
+        <img src="./logodc.jpeg" alt="Logo" style="width:54px;height:54px;border-radius:8px;object-fit:cover;border:2px solid rgba(255,255,255,.35);background:#fff;">
+        <div>
+          <div style="font-size:1.1rem;font-weight:800;">Dr. ${dr.nombre||''} ${dr.apellido||''}</div>
+          <div style="font-size:0.76rem;opacity:.85;">${dr.especialidad||'Médico General'}</div>
+          <div style="font-size:0.66rem;opacity:.7;margin-top:2px;">${[dr.consultorio, dr.direccion].filter(Boolean).join(' · ')}</div>
+        </div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:.1em;opacity:.7;">Reporte Estadístico</div>
+        <div style="font-size:0.95rem;font-weight:700;margin-top:2px;">${mesActual}</div>
+        <div style="font-size:0.65rem;opacity:.65;margin-top:2px;">${fechaReporte}</div>
+      </div>
+    </div>
+
+    <!-- BANDA -->
+    <div style="background:#e8f0fb;border-top:2px solid #2563ab;border-bottom:2px solid #2563ab;text-align:center;padding:5px;font-size:0.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.15em;color:#1a4580;">
+      ✦ Reporte Estadístico del Consultorio ✦
+    </div>
+
+    <div style="padding:18px 24px;">
+
+      <!-- KPIs -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
+        ${[
+          { label:'Pacientes', value: totalPacientes, color:'#2563ab' },
+          { label:'Consultas', value: totalConsultas, color:'#059669' },
+          { label:'Citas agendadas', value: totalCitas, color:'#d97706' },
+          { label:'Ingresos mes', value: '$'+ingresosMes.toFixed(2), color:'#7c3aed' },
+        ].map(k => `
+          <div style="background:#f4f7fc;border:1px solid #dde8f8;border-radius:9px;padding:12px 14px;text-align:center;">
+            <div style="font-size:1.5rem;font-weight:800;color:${k.color};">${k.value}</div>
+            <div style="font-size:0.65rem;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-top:3px;">${k.label}</div>
+          </div>`).join('')}
+      </div>
+
+      <!-- Consultas por mes -->
+      <div style="margin-bottom:20px;border:1px solid #e2e8f0;border-radius:9px;overflow:hidden;">
+        <div style="background:#1a4580;color:#fff;padding:8px 14px;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;">📊 Consultas por Mes — ${now.getFullYear()}</div>
+        <div style="padding:14px;">
+          <div style="display:flex;align-items:flex-end;gap:6px;height:80px;">
+            ${porMes.map((v, i) => `
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;">
+                <div style="font-size:0.65rem;color:#555;font-weight:600;">${v||''}</div>
+                <div style="width:100%;background:${i===now.getMonth()?'#2563ab':'#a5b4fc'};border-radius:3px 3px 0 0;height:${v?Math.max(8, Math.round(v/maxMes*60))+'px':'4px'};opacity:${i===now.getMonth()?1:0.7};"></div>
+                <div style="font-size:0.6rem;color:#888;">${meses[i]}</div>
+              </div>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      <!-- Dos columnas: edad + tipos -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+
+        <!-- Distribución por edad -->
+        <div style="border:1px solid #e2e8f0;border-radius:9px;overflow:hidden;">
+          <div style="background:#1a4580;color:#fff;padding:8px 14px;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;">👥 Distribución por Edad</div>
+          <div style="padding:12px 14px;">
+            ${Object.entries(ageGroups).map(([label, val]) => {
+              const pct = totalPacientes ? Math.round(val/totalPacientes*100) : 0;
+              const colors = {'0-17':'#34d399','18-35':'#60a5fa','36-50':'#a78bfa','51-65':'#fbbf24','65+':'#f87171'};
+              return `<div style="margin-bottom:8px;">
+                <div style="display:flex;justify-content:space-between;font-size:0.75rem;margin-bottom:3px;">
+                  <span>${label} años</span>
+                  <span style="font-weight:700;color:${colors[label]||'#555'};">${val}</span>
+                </div>
+                <div style="background:#e2e8f0;border-radius:4px;height:6px;">
+                  <div style="background:${colors[label]||'#555'};width:${pct}%;height:6px;border-radius:4px;min-width:${val?4:0}px;"></div>
+                </div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+
+        <!-- Tipos de consulta -->
+        <div style="border:1px solid #e2e8f0;border-radius:9px;overflow:hidden;">
+          <div style="background:#1a4580;color:#fff;padding:8px 14px;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;">📋 Tipos de Consulta</div>
+          <div style="padding:12px 14px;">
+            ${Object.entries(tipos).length ? Object.entries(tipos).sort((a,b)=>b[1]-a[1]).map(([tipo, val]) => {
+              const pct = totalConsultas ? Math.round(val/totalConsultas*100) : 0;
+              return `<div style="margin-bottom:8px;">
+                <div style="display:flex;justify-content:space-between;font-size:0.75rem;margin-bottom:3px;">
+                  <span>${tipo}</span><span style="font-weight:700;color:#2563ab;">${val} (${pct}%)</span>
+                </div>
+                <div style="background:#e2e8f0;border-radius:4px;height:6px;">
+                  <div style="background:#2563ab;width:${pct}%;height:6px;border-radius:4px;min-width:${val?4:0}px;"></div>
+                </div>
+              </div>`;
+            }).join('') : '<div style="font-size:0.8rem;color:#aaa;padding:8px 0;">Sin consultas registradas</div>'}
+          </div>
+        </div>
+      </div>
+
+      <!-- Top diagnósticos -->
+      ${topDiags.length ? `
+      <div style="border:1px solid #e2e8f0;border-radius:9px;overflow:hidden;margin-bottom:20px;">
+        <div style="background:#1a4580;color:#fff;padding:8px 14px;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;">🩺 Diagnósticos Frecuentes</div>
+        <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+          <thead><tr style="background:#f4f7fc;">
+            <th style="padding:8px 14px;text-align:left;font-size:0.68rem;color:#555;font-weight:600;">#</th>
+            <th style="padding:8px 14px;text-align:left;font-size:0.68rem;color:#555;font-weight:600;">Diagnóstico</th>
+            <th style="padding:8px 14px;text-align:right;font-size:0.68rem;color:#555;font-weight:600;">Casos</th>
+          </tr></thead>
+          <tbody>${topDiags.map(([d,v],i)=>`
+            <tr style="border-top:1px solid #f0f0f0;">
+              <td style="padding:7px 14px;color:#aaa;font-weight:700;">${i+1}</td>
+              <td style="padding:7px 14px;">${d}</td>
+              <td style="padding:7px 14px;text-align:right;font-weight:700;color:#2563ab;">${v}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>` : ''}
+
+      <!-- Pie -->
+      <div style="border-top:1px dashed #c5d0e0;padding-top:12px;display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:0.62rem;color:#aaa;">
+          <div>Documento generado por MediCore</div>
+          <div>${fechaReporte}</div>
+        </div>
+        ${buildFirmaBlock(dr, localStorage.getItem('mc_cedula_prof')||'')}
+      </div>
+
+    </div>
+  </div>`;
+
+  document.getElementById('print-area').style.display = 'block';
+  setTimeout(() => { window.print(); document.getElementById('print-area').style.display = 'none'; }, 200);
+}
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // MODAL HELPERS
