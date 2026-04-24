@@ -492,16 +492,39 @@
 
     /* ── PRINT STYLES ── */
     @media print {
-      html, body { margin:0 !important; padding:0 !important; background:#fff !important; }
-      body > *:not(#print-area) { display:none !important; }
-      #print-area { display:block !important; position:static !important; width:100% !important; margin:0 !important; padding:0 !important; }
-      #print-area * { visibility:visible !important; }
-      /* Keep the whole receta/report on one page */
-      #print-area > div,
-      #print-content > div { page-break-inside: avoid !important; break-inside: avoid !important; }
-      /* Kill any accidental overflow that triggers an extra page */
-      #print-area, #print-content { overflow:hidden !important; }
-      @page { margin: 10mm 10mm 10mm 10mm; size: A4; }
+      /* Eliminar cualquier altura mínima que fuerce páginas extra */
+      html, body, #app, .app-layout, .main-content {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fff !important;
+        min-height: 0 !important;
+        height: auto !important;
+        overflow: visible !important;
+      }
+      /* Ocultar todo excepto el área de impresión */
+      body > *:not(#print-area) { display: none !important; }
+      /* El área de impresión ocupa solo el espacio necesario */
+      #print-area {
+        display: block !important;
+        position: static !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        min-height: 0 !important;
+        height: auto !important;
+        overflow: visible !important;
+      }
+      #print-content {
+        min-height: 0 !important;
+        height: auto !important;
+      }
+      /* Evitar que el contenido interno force página extra */
+      #print-content > div {
+        min-height: 0 !important;
+        page-break-after: avoid !important;
+        break-after: avoid !important;
+      }
+      @page { margin: 10mm; size: A4; }
     }
 
     /* ── PRESCRIPTION TEMPLATE ── */
@@ -2972,7 +2995,7 @@ function printConsultReport() {
        </div>` : '';
 
   document.getElementById('print-content').innerHTML = `
-  <div style="font-family:'Helvetica Neue',Arial,sans-serif;background:#fff;color:#1a1a2e;min-height:100vh;">
+  <div style="font-family:'Helvetica Neue',Arial,sans-serif;background:#fff;color:#1a1a2e;">
 
     <!-- ══ HEADER ══ -->
     <div style="background:linear-gradient(135deg,#0f2447 0%,#1a4580 60%,#2563ab 100%);color:#fff;padding:24px 32px;display:flex;align-items:center;justify-content:space-between;">
