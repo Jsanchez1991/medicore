@@ -2365,6 +2365,7 @@ function openDetail(id) {
 // CONSULTATIONS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 let _pendingImages = [];
+let _editingImages = []; // Para URLs de imágenes ya existentes durante la edición
 
 function calcIMC() {
   const peso = parseFloat(document.getElementById('c-peso').value);
@@ -2378,20 +2379,50 @@ function calcIMC() {
   } else { imcEl.value = ''; }
 }
 
-function previewImages(files) {
+function renderImagePreview() {
   const preview = document.getElementById('image-preview');
+  if (!preview) return;
+  
+  let html = '';
+  // Imágenes existentes (URLs)
+  _editingImages.forEach((url, i) => {
+    html += `
+      <div class="preview-item existing">
+        <img src="${url}" alt="Existente">
+        <button class="preview-remove" onclick="removeExistingImage(${i})">✕</button>
+      </div>`;
+  });
+  
+  // Imágenes pendientes (Files)
+  _pendingImages.forEach((file, i) => {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    html += `
+      <div class="preview-item">
+        <img src="${url}" alt="${file.name}">
+        <button class="preview-remove" onclick="removePendingImage(${i})">✕</button>
+      </div>`;
+  });
+  
+  preview.innerHTML = html;
+}
+
+function removeExistingImage(i) {
+  _editingImages.splice(i, 1);
+  renderImagePreview();
+}
+
+function removePendingImage(i) {
+  _pendingImages[i] = null;
+  renderImagePreview();
+}
+
+function previewImages(files) {
   Array.from(files).forEach(file => {
     if (file.size > 5 * 1024 * 1024) { showToast('warn','Imagen grande', file.name + ' supera 5MB'); return; }
-    const idx = _pendingImages.push(file) - 1;
-    const reader = new FileReader();
-    reader.onload = e => {
-      const div = document.createElement('div');
-      div.className = 'preview-item';
-      div.innerHTML = `<img src="${e.target.result}" alt="${file.name}"><button class="preview-remove" onclick="_pendingImages[${idx}]=null;this.parentElement.remove()">✕</button>`;
-      preview.appendChild(div);
-    };
-    reader.readAsDataURL(file);
+    _pendingImages.push(file);
   });
+  renderImagePreview();
 }
 
 function handleImageDrop(e) {
@@ -2408,6 +2439,7 @@ function openNewConsult(patientId) {
   ['c-ant-personales','c-ant-familiares'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('image-preview').innerHTML = '';
   _pendingImages = [];
+  _editingImages = [];
   // Reset modal title/button
   document.querySelector('#modal-consult .modal-title').textContent = '📋 Nueva Consulta';
   document.querySelector('#modal-consult .btn-accent').textContent = '📋 Registrar Consulta';
@@ -2454,7 +2486,7 @@ async function saveConsult() {
     tratamiento: document.getElementById('c-tratamiento').value.trim(),
     examen: document.getElementById('c-examen').value.trim(),
     notas: document.getElementById('c-notas').value.trim(),
-    signos, antecedentes, imagenes: [],
+    signos, antecedentes, imagenes: [..._editingImages],
     cie10: [..._cie10Selected],
     procedimientoEstetico: getProcedimientoEstetico(),
     tags: [diag.split(' ')[0]]
@@ -2466,8 +2498,7 @@ async function saveConsult() {
     const idx = DB.consultations.findIndex(x => x.id === _editingConsultId);
     if (idx !== -1) {
       c.id = _editingConsultId;
-      c.imagenes = DB.consultations[idx].imagenes || [];
-      // Usar la selección actual de CIE-10 siempre
+      // c.imagenes ya contiene _editingImages (las que no se borraron)
       c.cie10 = [..._cie10Selected]; 
       DB.consultations[idx] = c;
     }
@@ -2487,7 +2518,7 @@ async function saveConsult() {
     showToast('info','Subiendo imágenes',`${validImages.length} archivo(s)...`);
     try {
       const urls = await sbUploadImages(c.id, validImages);
-      c.imagenes = urls;
+      c.imagenes = [...c.imagenes, ...urls]; // Añadir nuevas a las existentes
       DB.save();
       if(urls.length) showToast('success','Imágenes guardadas',`${urls.length} imagen(es) subida(s)`);
     } catch(e) { console.warn('Error subiendo imágenes:', e); }
@@ -2975,8 +3006,9 @@ function editConsult() {
   document.getElementById('c-medicamentos-act').value = ant.medicamentos || '';
   document.getElementById('c-cirugias').value = ant.cirugias || '';
 
-  document.getElementById('image-preview').innerHTML = '';
   _pendingImages = [];
+  _editingImages = [...(c.imagenes || [])];
+  renderImagePreview();
 
   // CIE-10 y procedimiento estético
   _cie10Selected = c.cie10 || [];
