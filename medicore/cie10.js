@@ -366,4 +366,20 @@ const CIE10_DB = [
   {c:"Z73.0",d:"Agotamiento y cansancio extremo (Burnout)"},
   {c:"Z78.0",d:"Estado de menopausia asintomático"},
   {c:"Z96.6",d:"Presencia de implantes ortopédicos articulares"},
+  
+  // ── S: Traumatismos (Heridas) ──
+  {c:"S01.9",d:"Herida de la cabeza, parte no especificada"},
+  {c:"S11.9",d:"Herida del cuello, parte no especificada"},
+  {c:"S21.9",d:"Herida del tórax, parte no especificada"},
+  {c:"S31.1",d:"Herida de la pared abdominal"},
+  {c:"S41.0",d:"Herida del hombro"},
+  {c:"S51.9",d:"Herida del antebrazo"},
+  {c:"S61.9",d:"Herida de la mano"},
+  {c:"S71.1",d:"Herida del muslo"},
+  {c:"S81.9",d:"Herida de la pierna"},
+  {c:"S91.3",d:"Herida del pie"},
+  {c:"S00.9",d:"Traumatismo superficial de la cabeza"},
+  {c:"S06.9",d:"Traumatismo intracraneal, no especificado"},
+  {c:"T14.1",d:"Herida de región no especificada del cuerpo"},
+  {c:"T14.0",d:"Traumatismo superficial de región no especificada"},
 ];

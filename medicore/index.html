@@ -621,7 +621,10 @@
   .cie10-chip { display:inline-flex; align-items:center; gap:6px; background:var(--accent)18; color:var(--accent); border:1px solid var(--accent)40; border-radius:20px; padding:4px 10px 4px 12px; font-size:0.78rem; font-weight:600; }
   .cie10-chip-remove { cursor:pointer; font-size:1rem; line-height:1; color:var(--accent); opacity:.7; transition:opacity .15s; border:none; background:none; padding:0; }
   .cie10-chip-remove:hover { opacity:1; }
-  .cie10-empty { padding:12px 14px; font-size:0.83rem; color:var(--text3); text-align:center; }
+  .cie10-empty { padding:14px; font-size:0.83rem; color:var(--text3); text-align:center; display:flex; flex-direction:column; gap:6px; cursor:pointer; }
+  .cie10-empty:hover { background:var(--accent)12; }
+  .cie10-custom { flex-direction:column; align-items:flex-start !important; gap:2px !important; }
+  .cie10-custom:hover { background:var(--accent)12; }
   /* ── Procedimiento Estético ── */
   .proc-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .proc-detail { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px; }
@@ -1498,16 +1501,27 @@ function searchCIE10(q) {
     e.c.toLowerCase().startsWith(term) || e.d.toLowerCase().includes(term)
   ).slice(0, 12);
   if (!results.length) {
-    dd.innerHTML = '<li class="cie10-empty">Sin resultados para "' + q + '"</li>';
+    dd.innerHTML = `<li class="cie10-empty" onmousedown="addCIE10Code('Manual','${q.replace(/'/g,"\\'").replace(/`/g,"\\`")}')">
+      <span>Sin resultados exactos.</span>
+      <span style="color:var(--accent);font-weight:600;">➕ Agregar "${q}" como diagnóstico libre</span>
+    </li>`;
     dd.style.display = 'block'; _cie10DropIndex = -1; return;
   }
   _cie10DropIndex = -1;
-  dd.innerHTML = results.map((e, i) =>
+  let html = results.map((e, i) =>
     `<li data-i="${i}" data-c="${e.c}" data-d="${encodeURIComponent(e.d)}" onmousedown="addCIE10Code('${e.c}','${e.d.replace(/'/g,"\\'").replace(/`/g,"\\`")}')">
       <span class="cie10-code">${e.c}</span>
       <span class="cie10-desc">${e.d}</span>
     </li>`
   ).join('');
+  
+  // Agregar opción de diagnóstico libre al final también
+  html += `<li class="cie10-custom" onmousedown="addCIE10Code('Manual','${q.replace(/'/g,"\\'").replace(/`/g,"\\`")}')" style="border-top:1px dashed var(--border2);margin-top:4px;padding-top:8px;">
+    <span style="font-size:0.75rem;color:var(--text3)">¿No es lo que buscas?</span>
+    <span style="color:var(--accent);font-weight:600;display:block;margin-top:2px;">➕ Agregar "${q}" como diagnóstico libre</span>
+  </li>`;
+  
+  dd.innerHTML = html;
   dd.style.display = 'block';
 }
 
@@ -1531,9 +1545,14 @@ function addCIE10Code(codigo, descripcion) {
   renderCIE10Chips();
   document.getElementById('cie10-dropdown').style.display = 'none';
   document.getElementById('c-cie10-search').value = '';
-  // Auto-fill diagnostico text if empty
+  // Append to diagnostico text
   const diagInput = document.getElementById('c-diagnostico');
-  if (!diagInput.value.trim()) diagInput.value = descripcion;
+  const currentVal = diagInput.value.trim();
+  if (!currentVal) {
+    diagInput.value = descripcion;
+  } else if (!currentVal.toLowerCase().includes(descripcion.toLowerCase())) {
+    diagInput.value = currentVal + ', ' + descripcion;
+  }
 }
 
 function removeCIE10Code(codigo) {
