@@ -736,25 +736,25 @@
           <div class="stat-icon">👥</div>
           <div class="stat-value" id="stat-total">0</div>
           <div class="stat-label">Pacientes Totales</div>
-          <div class="stat-delta">↑ +3 este mes</div>
+          <div class="stat-delta" id="stat-total-delta">↑ +0 este mes</div>
         </div>
         <div class="stat-card c2">
           <div class="stat-icon">📅</div>
-          <div class="stat-value" id="stat-today">3</div>
+          <div class="stat-value" id="stat-today">0</div>
           <div class="stat-label">Citas Hoy</div>
-          <div class="stat-delta">↑ 2 confirmadas</div>
+          <div class="stat-delta" id="stat-today-delta">↑ 0 confirmadas</div>
         </div>
         <div class="stat-card c3">
           <div class="stat-icon">📋</div>
           <div class="stat-value" id="stat-consult">0</div>
           <div class="stat-label">Consultas Totales</div>
-          <div class="stat-delta">↑ +7 esta semana</div>
+          <div class="stat-delta" id="stat-consult-delta">↑ +0 esta semana</div>
         </div>
         <div class="stat-card c4">
           <div class="stat-icon">⏰</div>
-          <div class="stat-value">98%</div>
+          <div class="stat-value" id="stat-attendance">100%</div>
           <div class="stat-label">Asistencia</div>
-          <div class="stat-delta">↑ Excelente</div>
+          <div class="stat-delta" id="stat-attendance-delta">Excelente</div>
         </div>
       </div>
 
@@ -2060,26 +2060,60 @@ async function syncPendingData() {
 // DASHBOARD
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function renderDashboard() {
+  const today = new Date().toISOString().split('T')[0];
+  const todayAppts = DB.appointments.filter(a => a.fecha === today);
+  const confirmedToday = todayAppts.filter(a => a.estado === 'confirmed' || a.estado === 'done').length;
+
+  const thisMonth = new Date().toISOString().slice(0, 7);
+  const newPatientsThisMonth = DB.patients.filter(p => p.creado && p.creado.startsWith(thisMonth)).length;
+
+  const oneWeekAgo = new Date(); oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+  const recentConsultations = DB.consultations.filter(c => new Date(c.fecha) >= oneWeekAgo).length;
+
   document.getElementById('stat-total').textContent = DB.patients.length;
+  document.getElementById('stat-total-delta').textContent = `↑ +${newPatientsThisMonth} este mes`;
+  
+  document.getElementById('stat-today').textContent = todayAppts.length;
+  document.getElementById('stat-today-delta').textContent = `↑ ${confirmedToday} confirmadas`;
+
   document.getElementById('stat-consult').textContent = DB.consultations.length;
+  document.getElementById('stat-consult-delta').textContent = `↑ +${recentConsultations} esta semana`;
+
+  // Asistencia
+  const totalRelevant = DB.appointments.filter(a => a.estado !== 'cancelled').length;
+  const attended = DB.appointments.filter(a => a.estado === 'done' || a.estado === 'confirmed').length;
+  const attendancePct = totalRelevant > 0 ? Math.round((attended / totalRelevant) * 100) : 100;
+  document.getElementById('stat-attendance').textContent = `${attendancePct}%`;
+  document.getElementById('stat-attendance-delta').textContent = attendancePct >= 90 ? 'Excelente' : attendancePct >= 70 ? 'Bueno' : 'Regular';
+
   document.getElementById('badge-pacientes').textContent = DB.patients.length;
 
-  // Weekly chart
-  const days = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
-  const vals = [3,5,2,7,4,2,1];
-  const max = Math.max(...vals);
+  // Weekly chart (last 7 days)
+  const days = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const vals = [0,0,0,0,0,0,0];
+  const labels = [];
+  const now = new Date();
+  
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(now.getDate() - i);
+    const dStr = d.toISOString().split('T')[0];
+    const count = DB.consultations.filter(c => c.fecha.startsWith(dStr)).length;
+    vals[6-i] = count;
+    labels[6-i] = days[d.getDay()];
+  }
+
+  const max = Math.max(...vals, 1);
   const chartEl = document.getElementById('weekly-chart');
   chartEl.innerHTML = '';
-  vals.forEach((v,i) => {
+  vals.forEach((v, i) => {
     const col = document.createElement('div');
     col.className = 'bar-col';
-    col.innerHTML = `<div class="bar" style="height:${Math.round(v/max*110)+10}px" title="${v} consultas"></div><div class="bar-label">${days[i]}</div>`;
+    col.innerHTML = `<div class="bar" style="height:${Math.round(v/max*110)+10}px" title="${v} consultas"></div><div class="bar-label">${labels[i]}</div>`;
     chartEl.appendChild(col);
   });
 
-  // Today's appointments
-  const today = new Date().toISOString().split('T')[0];
-  const todayAppts = DB.appointments.filter(a => a.fecha === today);
+  // Today's appointments list
   const el = document.getElementById('today-appointments');
   if (todayAppts.length === 0) {
     el.innerHTML = '<div class="empty-state"><div class="icon">📅</div><p>Sin citas para hoy</p></div>';
