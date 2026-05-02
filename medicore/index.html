@@ -1769,6 +1769,15 @@ function fmtDate(iso) {
 function initials(p) { return (p.nombre[0]+(p.apellido[0]||'')).toUpperCase(); }
 function uid() { return 'id_'+Math.random().toString(36).substr(2,9); }
 
+// Retorna la fecha actual en formato YYYY-MM-DD respetando la zona horaria local
+function getTodayISO() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function showToast(type, msg, sub='') {
   const icons = { success:'✅', error:'❌', warn:'⚠️', info:'ℹ️' };
   const c = document.getElementById('toast-container');
@@ -2060,11 +2069,11 @@ async function syncPendingData() {
 // DASHBOARD
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function renderDashboard() {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayISO();
   const todayAppts = DB.appointments.filter(a => a.fecha === today);
   const confirmedToday = todayAppts.filter(a => a.estado === 'confirmed' || a.estado === 'done').length;
 
-  const thisMonth = new Date().toISOString().slice(0, 7);
+  const thisMonth = getTodayISO().slice(0, 7);
   const newPatientsThisMonth = DB.patients.filter(p => p.creado && p.creado.startsWith(thisMonth)).length;
 
   const oneWeekAgo = new Date(); oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
@@ -2478,7 +2487,7 @@ async function saveConsult() {
 let calYear = new Date().getFullYear(), calMonth = new Date().getMonth();
 const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
-let _selectedDate = new Date().toISOString().split('T')[0];
+let _selectedDate = getTodayISO();
 
 function renderAgenda() {
   renderCalendar();
@@ -2487,7 +2496,7 @@ function renderAgenda() {
 }
 
 function renderApptStats() {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayISO();
   const thisMonth = today.slice(0,7);
   const monthAppts = DB.appointments.filter(a => a.fecha.startsWith(thisMonth));
   const confirmed = monthAppts.filter(a => a.estado==='confirmed').length;
@@ -2630,7 +2639,7 @@ function toggleBlockDay(dateStr) {
 function goToday() {
   const now = new Date();
   calYear = now.getFullYear(); calMonth = now.getMonth();
-  _selectedDate = now.toISOString().split('T')[0];
+  _selectedDate = getTodayISO();
   renderAgenda();
 }
 
@@ -2644,8 +2653,7 @@ function renderCalendar() {
   document.getElementById('cal-month-label').textContent = `${months[calMonth]} ${calYear}`;
   const first = new Date(calYear, calMonth, 1).getDay();
   const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
-  const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
+  const todayStr = getTodayISO();
 
   // Agrupar citas por fecha
   const apptByDate = {};
@@ -2705,7 +2713,7 @@ function calNav(dir) {
 function openNewAppointment() {
   const sel = document.getElementById('a-paciente');
   sel.innerHTML = DB.patients.map(p=>`<option value="${p.id}">${p.nombre} ${p.apellido}</option>`).join('');
-  document.getElementById('a-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('a-fecha').value = getTodayISO();
   document.getElementById('a-motivo').value = '';
   openModal('modal-appt');
 }
