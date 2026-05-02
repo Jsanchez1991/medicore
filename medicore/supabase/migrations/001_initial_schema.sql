@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS pacientes (
   telefono    TEXT,
   email       TEXT,
   direccion   TEXT,
+  orientacion_sexual TEXT,
   alergias    TEXT,
   notas       TEXT,
   estado      TEXT DEFAULT 'nuevo' CHECK (estado IN ('nuevo','activo','inactivo')),

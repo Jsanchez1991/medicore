@@ -1064,6 +1064,16 @@
         </select>
       </div>
       <div class="form-group">
+        <label>Orientación Sexual</label>
+        <select id="p-orientacion">
+          <option value="">— Seleccionar —</option>
+          <option value="Heterosexual">Heterosexual</option>
+          <option value="Bisexual">Bisexual</option>
+          <option value="Homosexual">Homosexual</option>
+          <option value="Otros">Otros</option>
+        </select>
+      </div>
+      <div class="form-group">
         <label>Celular (para citas)</label>
         <input type="tel" id="p-tel" placeholder="Ej: 0968192046" maxlength="10" oninput="validarTelefono(this)" inputmode="numeric">
         <span id="tel-hint" style="font-size:0.68rem;margin-top:3px;display:block;min-height:14px"></span>
@@ -2152,7 +2162,7 @@ function editPatientFromDetail(id) {
 
 function openNewPatient(id) {
   document.getElementById('modal-patient-title').textContent = id ? 'Editar Paciente' : 'Nuevo Paciente';
-  ['nombre','apellido','cedula','nacimiento','sexo','tel','email','direccion','alergias','notas'].forEach(f => {
+  ['nombre','apellido','cedula','nacimiento','sexo','orientacion','tel','email','direccion','alergias','notas'].forEach(f => {
     const el = document.getElementById('p-'+f);
     if(id) { const p=DB.patients.find(x=>x.id===id); el.value=p?.[f]||''; } else el.value='';
   });
@@ -2163,7 +2173,7 @@ function openNewPatient(id) {
 function savePatient() {
   const id = document.getElementById('modal-patient').dataset.editId;
   const data = {};
-  ['nombre','apellido','cedula','nacimiento','sexo','tel','email','direccion','alergias','notas'].forEach(f => data[f]=document.getElementById('p-'+f).value.trim());
+  ['nombre','apellido','cedula','nacimiento','sexo','orientacion','tel','email','direccion','alergias','notas'].forEach(f => data[f]=document.getElementById('p-'+f).value.trim());
   if(!data.nombre||!data.apellido){ showToast('error','Campos requeridos','Nombre y apellido son obligatorios'); return; }
   // Validar cédula
   if(data.cedula){
@@ -2247,6 +2257,7 @@ function openDetail(id) {
           ${p.cedula?`<span class="meta-chip">📋 ${p.cedula}</span>`:''}
           ${p.nacimiento?`<span class="meta-chip">🎂 ${getAge(p.nacimiento)} años</span>`:''}
           ${p.sexo?`<span class="meta-chip">${p.sexo==='M'?'♂ Masculino':'♀ Femenino'}</span>`:''}
+          ${p.orientacion?`<span class="meta-chip">🌈 ${p.orientacion}</span>`:''}
           <span class="meta-chip">${cons.length} consulta${cons.length!==1?'s':''}</span>
         </div>
       </div>
