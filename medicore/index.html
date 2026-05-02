@@ -2408,6 +2408,10 @@ function openNewConsult(patientId) {
   ['c-ant-personales','c-ant-familiares'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('image-preview').innerHTML = '';
   _pendingImages = [];
+  // Reset modal title/button
+  document.querySelector('#modal-consult .modal-title').textContent = '📋 Nueva Consulta';
+  document.querySelector('#modal-consult .btn-accent').textContent = '📋 Registrar Consulta';
+  
   resetCIE10();
   resetProcedimientoEstetico();
   _editingConsultId = null;
@@ -2418,9 +2422,11 @@ async function saveConsult() {
   const pid = document.getElementById('c-paciente').value;
   const diag = document.getElementById('c-diagnostico').value.trim();
   if(!pid||!diag){ showToast('error','Campos requeridos','Paciente y diagnóstico son obligatorios'); return; }
-  // Reset modal title/button
-  document.querySelector('#modal-consult .modal-title').textContent = '📋 Nueva Consulta';
-  document.querySelector('#modal-consult .btn-accent').textContent = '📋 Registrar Consulta';
+  // Reset modal title/button (done in openNewConsult too, but as safeguard)
+  if (!_editingConsultId) {
+    document.querySelector('#modal-consult .modal-title').textContent = '📋 Nueva Consulta';
+    document.querySelector('#modal-consult .btn-accent').textContent = '📋 Registrar Consulta';
+  }
 
   const signos = {
     peso: document.getElementById('c-peso').value,
@@ -2461,7 +2467,8 @@ async function saveConsult() {
     if (idx !== -1) {
       c.id = _editingConsultId;
       c.imagenes = DB.consultations[idx].imagenes || [];
-      c.cie10 = c.cie10.length ? c.cie10 : (DB.consultations[idx].cie10 || []);
+      // Usar la selección actual de CIE-10 siempre
+      c.cie10 = [..._cie10Selected]; 
       DB.consultations[idx] = c;
     }
     _editingConsultId = null;
