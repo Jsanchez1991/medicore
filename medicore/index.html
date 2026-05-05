@@ -1637,8 +1637,15 @@ function toggleProcMode() {
     catalogo.style.display = 'none';
     manual.style.display = 'block';
     btn.textContent = '📋 Usar catálogo';
-    // Limpiar campos catálogo
-    resetProcedimientoEstetico();
+    // Limpiar campos catálogo sin resetear el modo
+    const catSel = document.getElementById('c-cat-estetica');
+    const procSel = document.getElementById('c-proc-nombre');
+    const tecSel = document.getElementById('c-proc-tecnica');
+    const zonaInput = document.getElementById('c-proc-zona');
+    if (catSel) catSel.value = '';
+    if (procSel) procSel.innerHTML = '<option value="">— Seleccionar procedimiento —</option>';
+    if (tecSel) tecSel.innerHTML = '<option value="">— Técnica —</option>';
+    if (zonaInput) zonaInput.value = '';
   }
 }
 
