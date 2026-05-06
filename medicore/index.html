@@ -2002,6 +2002,7 @@ async function initApp() {
           });
           DB.appointments  = remote.appointments;
           DB.facturas      = remote.facturas || [];
+          DB.blockedDays   = remote.blockedDays || [];
           DB.save();
           renderDashboard();
           if(currentView==='pacientes')   renderPatients();
@@ -2691,10 +2692,12 @@ function toggleBlockDay(dateStr) {
   if (idx >= 0) {
     DB.blockedDays.splice(idx, 1);
     DB.save();
+    if (typeof sbUnblockDay === 'function') sbUnblockDay(dateStr).catch(e=>console.warn('Sync unblock error:', e));
     showToast('success', 'Día desbloqueado', 'Se pueden agendar citas en este día');
   } else {
     DB.blockedDays.push(dateStr);
     DB.save();
+    if (typeof sbBlockDay === 'function') sbBlockDay(dateStr).catch(e=>console.warn('Sync block error:', e));
     showToast('warn', 'Día bloqueado', 'No se aceptarán citas este día');
   }
   renderAgenda();

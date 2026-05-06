@@ -82,11 +82,12 @@ function getDoctorId() { return _doctorId }
 async function sbLoadAll() {
   if (!_doctorId || !navigator.onLine) return null
 
-  const [pRes, cRes, aRes, fRes] = await Promise.all([
+  const [pRes, cRes, aRes, fRes, bRes] = await Promise.all([
     sb.from('pacientes').select('*').eq('doctor_id', _doctorId).order('created_at', { ascending: false }),
     sb.from('consultas').select('*').eq('doctor_id', _doctorId).order('created_at', { ascending: false }),
     sb.from('citas').select('*').eq('doctor_id', _doctorId).order('fecha', { ascending: true }),
     sb.from('facturas').select('*').eq('doctor_id', _doctorId).order('fecha', { ascending: false }),
+    sb.from('dias_bloqueados').select('fecha').eq('doctor_id', _doctorId)
   ])
 
   if (pRes.error || cRes.error || aRes.error) {
@@ -99,6 +100,7 @@ async function sbLoadAll() {
     consultations: (cRes.data || []).map(mapConsultFromDB),
     appointments:  (aRes.data || []).map(mapApptFromDB),
     facturas:      fRes.error ? [] : (fRes.data || []).map(mapFacturaFromDB),
+    blockedDays:   (bRes.data || []).map(b => b.fecha)
   }
 }
 
@@ -211,6 +213,20 @@ async function sbUpdateApptStatus(id, status) {
 async function sbDeleteAppt(id) {
   if (!navigator.onLine || !isUUID(id)) return
   await sb.from('citas').delete().eq('id', id)
+}
+
+// ════════════════════════════════════════════════════════════════
+// DÍAS BLOQUEADOS
+// ════════════════════════════════════════════════════════════════
+
+async function sbBlockDay(fecha) {
+  if (!_doctorId || !navigator.onLine) return
+  await sb.from('dias_bloqueados').upsert({ doctor_id: _doctorId, fecha }, { onConflict: 'doctor_id, fecha' })
+}
+
+async function sbUnblockDay(fecha) {
+  if (!_doctorId || !navigator.onLine) return
+  await sb.from('dias_bloqueados').delete().match({ doctor_id: _doctorId, fecha })
 }
 
 // ════════════════════════════════════════════════════════════════
