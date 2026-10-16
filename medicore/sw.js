@@ -1,4 +1,4 @@
-const CACHE_NAME = 'medicore-v2.0.2';
+const CACHE_NAME = 'medicore-v2.0.3';
 
 // Archivos del app shell (se sirven offline siempre)
 const APP_SHELL = [
